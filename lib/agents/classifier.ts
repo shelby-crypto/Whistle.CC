@@ -2,13 +2,27 @@ import Anthropic from "@anthropic-ai/sdk";
 import { CLASSIFIER_SYSTEM_PROMPT } from "./prompts/classifier";
 import type { ClassifierOutput, ContentContext, PipelineError } from "./types";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const apiKey = process.env.ANTHROPIC_API_KEY;
+if (!apiKey) {
+  console.error("[classifier] ANTHROPIC_API_KEY is not set!");
+}
+const client = new Anthropic({ apiKey: apiKey ?? "" });
 
 export async function runClassifier(
   content: string,
   context: ContentContext
 ): Promise<ClassifierOutput | PipelineError> {
+  if (!apiKey) {
+    console.error("[classifier] ANTHROPIC_API_KEY missing — cannot call API");
+    return {
+      error: "missing_api_key",
+      stage: "classifier",
+      details: "ANTHROPIC_API_KEY environment variable is not set",
+    };
+  }
+
   const userMessage = JSON.stringify({ content, context });
+  console.log("[classifier] Calling Anthropic API with model claude-haiku-4-5-20251001...");
 
   try {
     const response = await client.messages.create({

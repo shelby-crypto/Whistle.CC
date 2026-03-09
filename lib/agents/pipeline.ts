@@ -21,8 +21,11 @@ export async function runPipeline(
   // ── Stage 1: Classifier ────────────────────────────────────────────────────
   let classifierResult: ClassifierOutput | PipelineError;
   try {
+    console.log("[pipeline] Running classifier on content:", content.slice(0, 100));
     classifierResult = await runClassifier(content, context);
+    console.log("[pipeline] Classifier result:", isPipelineError(classifierResult) ? `ERROR: ${JSON.stringify(classifierResult)}` : `risk_level=${classifierResult.risk_level}`);
   } catch (err) {
+    console.error("[pipeline] Classifier threw unexpectedly:", err);
     classifierResult = {
       error: "classifier_threw_unexpectedly",
       stage: "classifier",
@@ -31,6 +34,7 @@ export async function runPipeline(
   }
 
   if (isPipelineError(classifierResult)) {
+    console.error("[pipeline] Classifier failed, skipping remaining stages:", JSON.stringify(classifierResult));
     return {
       classifier: classifierResult,
       actionAgent: {
