@@ -71,9 +71,9 @@ async function reprocessItems(items: any[]) {
     const contentItem = item.content_items;
     const content = contentItem.content;
     const context = {
-      direction: contentItem.direction ?? "inbound",
-      reach: contentItem.reach ?? "low",
-      velocity: contentItem.velocity ?? "normal",
+      direction: contentItem.direction ?? "direct",
+      reach: contentItem.reach ?? "medium",
+      velocity: contentItem.velocity ?? "moderate",
     };
 
     try {
@@ -83,7 +83,7 @@ async function reprocessItems(items: any[]) {
       const actionOutput = pipelineResult.actionAgent;
       const isError = isPipelineError(actionOutput);
 
-      const newRiskLevel = isError ? "none" : (actionOutput as ActionAgentOutput).final_risk_level;
+      const newRiskLevel = isError ? "error" : (actionOutput as ActionAgentOutput).final_risk_level;
       const newContentAction = isError ? "log" : (actionOutput as ActionAgentOutput).actions_executed.content_action;
       const newAccountAction = isError ? "none" : (actionOutput as ActionAgentOutput).actions_executed.account_action;
       const newSupplementaryActions = isError ? [] : (actionOutput as ActionAgentOutput).actions_executed.supplementary_actions;
@@ -128,12 +128,20 @@ async function reprocessItems(items: any[]) {
         })
         .eq("pipeline_run_id", item.id);
 
+      // Include classifier error details when pipeline fails — the action agent
+      // just says "skipped_due_to_classifier_failure" which isn't helpful for debugging
+      const classifierError = isPipelineError(pipelineResult.classifier)
+        ? pipelineResult.classifier
+        : null;
+
       results.push({
         external_id: contentItem.external_id,
         content_preview: content.slice(0, 80),
-        old_risk: "none",
+        old_risk: item.final_risk_level ?? "none",
         new_risk: newRiskLevel,
-        status: isError ? `pipeline_error: ${JSON.stringify(actionOutput)}` : "success",
+        status: isError
+          ? `pipeline_error: classifier=${JSON.stringify(classifierError)}, action_agent=${JSON.stringify(actionOutput)}`
+          : "success",
       });
 
       console.log(`[reprocess] ${contentItem.external_id}: none -> ${newRiskLevel}`);
