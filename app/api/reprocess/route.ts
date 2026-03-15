@@ -86,7 +86,10 @@ async function reprocessItems(items: any[]) {
       const actionOutput = pipelineResult.actionAgent;
       const isError = isPipelineError(actionOutput);
 
-      const newRiskLevel = isError ? "error" : (actionOutput as ActionAgentOutput).final_risk_level;
+      // If the pipeline fails again during reprocessing, mark as "failed" (not "error")
+      // so the reprocess query won't pick it up again in an infinite loop.
+      // "error" items come from the live poller and get ONE reprocess attempt.
+      const newRiskLevel = isError ? "failed" : (actionOutput as ActionAgentOutput).final_risk_level;
       const newContentAction = isError ? "log" : (actionOutput as ActionAgentOutput).actions_executed.content_action;
       const newAccountAction = isError ? "none" : (actionOutput as ActionAgentOutput).actions_executed.account_action;
       const newSupplementaryActions = isError ? [] : (actionOutput as ActionAgentOutput).actions_executed.supplementary_actions;

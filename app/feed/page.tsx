@@ -71,6 +71,7 @@ interface PipelineRun {
 }
 
 const RISK_ORDER: Record<string, number> = {
+  failed: 6,
   error: 5,
   severe: 4,
   high: 3,
@@ -80,6 +81,7 @@ const RISK_ORDER: Record<string, number> = {
 };
 
 const RISK_COLORS: Record<string, string> = {
+  failed: 'bg-purple-700 text-white',
   error: 'bg-purple-500 text-white',
   severe: 'bg-red-500 text-white',
   high: 'bg-orange-500 text-white',
@@ -89,6 +91,7 @@ const RISK_COLORS: Record<string, string> = {
 };
 
 const HEADER_COLORS: Record<string, string> = {
+  failed: 'bg-purple-800',
   error: 'bg-purple-600',
   severe: 'bg-red-600',
   high: 'bg-orange-600',
@@ -270,6 +273,8 @@ export default function FeedPage() {
 
   const getRiskLevelLabel = (riskLevel: string): string => {
     switch (riskLevel) {
+      case 'failed':
+        return 'Pipeline Failed — Manual Review Required';
       case 'error':
         return 'Pipeline Error — Needs Reprocessing';
       case 'severe':
@@ -571,7 +576,7 @@ export default function FeedPage() {
                   const classifierReasoning = selectedFeed.classifier_output?.reasoning;
                   const actionBasis = selectedFeed.action_agent_output?.action_basis;
                   const hasError = selectedFeed.action_agent_output && 'error' in selectedFeed.action_agent_output;
-                  const isErrorRisk = selectedFeed.risk_level === 'error';
+                  const isErrorRisk = selectedFeed.risk_level === 'error' || selectedFeed.risk_level === 'failed';
 
                   // Pipeline failed — show error state
                   if (hasError || isErrorRisk) {
