@@ -5,7 +5,9 @@ import { isPipelineError } from "@/lib/agents/types";
 import type { ActionAgentOutput } from "@/lib/agents/types";
 import { normalizeContent } from "@/lib/platforms/normalizer";
 
-export const maxDuration = 60; // Allow up to 60s for reprocessing
+export const maxDuration = 300; // Allow up to 5 min for reprocessing
+
+const BATCH_SIZE = 3; // Process at most 3 items per request to avoid timeouts
 
 export async function POST() {
   try {
@@ -31,7 +33,8 @@ export async function POST() {
           raw_data
         )
       `)
-      .or("final_risk_level.eq.error,final_risk_level.eq.none,stages_completed.eq.{}");
+      .or("final_risk_level.eq.error,final_risk_level.eq.none,stages_completed.eq.{}")
+      .limit(BATCH_SIZE);
 
     if (fetchError) {
       return NextResponse.json(

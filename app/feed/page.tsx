@@ -163,7 +163,7 @@ export default function FeedPage() {
         const { data, error } = await supabase
           .from('pipeline_runs_feed')
           .select(
-            'id, created_at, platform, author_handle, content_text, risk_level, final_action, classifier_output, fp_checker_output, action_agent_output, safety_override_applied, irreversible_action_justification, stages_completed'
+            'id, created_at, platform, author_handle, content_text, risk_level, final_action, classifier_output, fp_checker_output, action_agent_output, safety_override_applied, irreversible_action_justification'
           )
           .order('created_at', { ascending: false });
 
@@ -571,10 +571,10 @@ export default function FeedPage() {
                   const classifierReasoning = selectedFeed.classifier_output?.reasoning;
                   const actionBasis = selectedFeed.action_agent_output?.action_basis;
                   const hasError = selectedFeed.action_agent_output && 'error' in selectedFeed.action_agent_output;
-                  const stagesCompleted = selectedFeed.stages_completed || [];
+                  const isErrorRisk = selectedFeed.risk_level === 'error';
 
                   // Pipeline failed — show error state
-                  if (hasError || stagesCompleted.length === 0) {
+                  if (hasError || isErrorRisk) {
                     return (
                       <div className="bg-red-900 bg-opacity-30 border border-red-700 rounded-lg p-3">
                         <p className="text-sm text-red-300 font-medium mb-1">Pipeline Error</p>
