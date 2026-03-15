@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { CLASSIFIER_SYSTEM_PROMPT } from "./prompts/classifier";
 import type { ClassifierOutput, ContentContext, PipelineError } from "./types";
+import { extractJSON } from "./extract-json";
 
 const apiKey = process.env.ANTHROPIC_API_KEY;
 if (!apiKey) {
@@ -36,10 +37,8 @@ export async function runClassifier(
     const rawText =
       response.content[0]?.type === "text" ? response.content[0].text : "";
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(rawText);
-    } catch {
+    const parsed = extractJSON(rawText);
+    if (parsed === null) {
       return {
         error: "invalid_json_response",
         stage: "classifier",

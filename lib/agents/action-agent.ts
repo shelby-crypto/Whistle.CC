@@ -6,6 +6,7 @@ import type {
   FPCheckerOutput,
   PipelineError,
 } from "./types";
+import { extractJSON } from "./extract-json";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -39,10 +40,8 @@ export async function runActionAgent(
     const rawText =
       response.content[0]?.type === "text" ? response.content[0].text : "";
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(rawText);
-    } catch {
+    const parsed = extractJSON(rawText);
+    if (parsed === null) {
       return {
         error: "invalid_json_response",
         stage: "action_agent",
