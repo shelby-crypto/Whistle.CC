@@ -11,10 +11,10 @@ const BATCH_SIZE = 3; // Process at most 3 items per request to avoid timeouts
 
 export async function POST() {
   try {
-    // Find all content items where the pipeline failed:
-    // - risk_level = "error" (new format from updated poller)
-    // - stages_completed is empty (classifier never ran)
-    // - risk_level = "none" (legacy failures that were silently stored as safe)
+    // Find content items where the pipeline genuinely failed:
+    // - risk_level = "error" (new format — pipeline explicitly errored)
+    // - risk_level = "none" WITH empty stages (legacy format — pipeline never ran)
+    // Does NOT re-pick items that were legitimately classified as "none" with completed stages
     const { data: failedItems, error: fetchError } = await db
       .from("pipeline_runs")
       .select(`
@@ -33,7 +33,7 @@ export async function POST() {
           raw_data
         )
       `)
-      .or("final_risk_level.eq.error,final_risk_level.eq.none,stages_completed.eq.{}")
+      .or("final_risk_level.eq.error,and(final_risk_level.eq.none,stages_completed.eq.{})")
       .limit(BATCH_SIZE);
 
     if (fetchError) {
