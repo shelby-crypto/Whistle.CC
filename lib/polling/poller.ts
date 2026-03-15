@@ -230,8 +230,11 @@ async function processContentItem(params: {
     const actionOutput = pipelineResult.actionAgent;
     const isActionError = isPipelineError(actionOutput);
 
+    // IMPORTANT: When the pipeline errors, store "error" as the risk level
+    // instead of "none", so we can distinguish real safe content from failures.
+    // The UI and reprocess endpoint use this to flag items that need re-evaluation.
     const finalRiskLevel = isActionError
-      ? "none"
+      ? "error"
       : (actionOutput as ActionAgentOutput).final_risk_level;
     const contentAction = isActionError
       ? "log"

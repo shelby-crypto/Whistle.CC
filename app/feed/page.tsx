@@ -37,13 +37,20 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-interface HarmScore {
-  value: number;
-  category: string;
+interface HarmScoreEntry {
+  score: 'none' | 'low' | 'medium' | 'high' | 'severe';
+  confidence: 'high' | 'medium' | 'low';
 }
 
 interface ClassifierOutput {
-  harm_scores: Record<string, number>;
+  harm_scores: Record<string, HarmScoreEntry>;
+  reasoning: string;
+  [key: string]: unknown;
+}
+
+interface ActionAgentOutput {
+  action_basis: string;
+  final_risk_level: string;
   [key: string]: unknown;
 }
 
@@ -57,12 +64,14 @@ interface PipelineRun {
   final_action: string;
   classifier_output: ClassifierOutput | null;
   fp_checker_output: Record<string, unknown> | null;
-  action_agent_output: Record<string, unknown> | null;
+  action_agent_output: ActionAgentOutput | null;
   safety_override_applied: boolean;
+  stages_completed?: string[];
   irreversible_action_justification: string | null;
 }
 
 const RISK_ORDER: Record<string, number> = {
+  error: 5,
   severe: 4,
   high: 3,
   medium: 2,
@@ -71,6 +80,7 @@ const RISK_ORDER: Record<string, number> = {
 };
 
 const RISK_COLORS: Record<string, string> = {
+  error: 'bg-purple-500 text-white',
   severe: 'bg-red-500 text-white',
   high: 'bg-orange-500 text-white',
   medium: 'bg-yellow-500 text-gray-950',
@@ -79,6 +89,7 @@ const RISK_COLORS: Record<string, string> = {
 };
 
 const HEADER_COLORS: Record<string, string> = {
+  error: 'bg-purple-600',
   severe: 'bg-red-600',
   high: 'bg-orange-600',
   medium: 'bg-yellow-600',
@@ -102,20 +113,34 @@ const HARM_CATEGORIES = [
   { key: 'H13_coordinated_harassment', label: 'Coordinated' },
 ];
 
-const scoreToLevel = (score: number): string => {
-  if (score >= 0.8) return 'severe';
-  if (score >= 0.6) return 'high';
-  if (score >= 0.4) return 'medium';
-  if (score >= 0.2) return 'low';
+// Convert a harm score entry (object with score/confidence) OR a raw string level to a display level
+const scoreEntryToLevel = (entry: HarmScoreEntry | string | number | undefined): string => {
+  if (!entry) return 'none';
+  // Handle the actual classifier output format: { score: "medium", confidence: "high" }
+  if (typeof entry === 'object' && 'score' in entry) return entry.score;
+  // Handle raw string levels (e.g. from manually set data)
+  if (typeof entry === 'string') return entry;
+  // Legacy numeric fallback (should not happen with current pipeline)
+  if (typeof entry === 'number') {
+    if (entry >= 0.8) return 'severe';
+    if (entry >= 0.6) return 'high';
+    if (entry >= 0.4) return 'medium';
+    if (entry >= 0.2) return 'low';
+    return 'none';
+  }
   return 'none';
 };
 
-const scoreToPercentage = (score: number): number => {
-  if (score >= 0.8) return 100;
-  if (score >= 0.6) return 75;
-  if (score >= 0.4) return 50;
-  if (score >= 0.2) return 25;
-  return 0;
+const LEVEL_PERCENTAGES: Record<string, number> = {
+  severe: 100,
+  high: 75,
+  medium: 50,
+  low: 25,
+  none: 0,
+};
+
+const levelToPercentage = (level: string): number => {
+  return LEVEL_PERCENTAGES[level] ?? 0;
 };
 
 export default function FeedPage() {
@@ -138,7 +163,7 @@ export default function FeedPage() {
         const { data, error } = await supabase
           .from('pipeline_runs_feed')
           .select(
-            'id, created_at, platform, author_handle, content_text, risk_level, final_action, classifier_output, fp_checker_output, action_agent_output, safety_override_applied, irreversible_action_justification'
+            'id, created_at, platform, author_handle, content_text, risk_level, final_action, classifier_output, fp_checker_output, action_agent_output, safety_override_applied, irreversible_action_justification, stages_completed'
           )
           .order('created_at', { ascending: false });
 
@@ -245,6 +270,8 @@ export default function FeedPage() {
 
   const getRiskLevelLabel = (riskLevel: string): string => {
     switch (riskLevel) {
+      case 'error':
+        return 'Pipeline Error — Needs Reprocessing';
       case 'severe':
         return 'High Harm';
       case 'high':
@@ -493,19 +520,22 @@ export default function FeedPage() {
                   <h3 className="font-semibold text-gray-100 mb-4">Harm Dimension Breakdown</h3>
                   <div className="space-y-3">
                     {HARM_CATEGORIES.map((category) => {
-                      const score = selectedFeed.classifier_output?.harm_scores[category.key] || 0;
-                      const level = scoreToLevel(score);
-                      const percentage = scoreToPercentage(score);
+                      const entry = selectedFeed.classifier_output?.harm_scores[category.key];
+                      const level = scoreEntryToLevel(entry);
+                      const percentage = levelToPercentage(level);
+                      const confidence = (typeof entry === 'object' && entry && 'confidence' in entry) ? entry.confidence : null;
 
                       return (
                         <div key={category.key}>
                           <div className="flex items-center justify-between mb-1">
                             <label className="text-sm text-gray-300">{category.label}</label>
-                            <span className="text-xs text-gray-500">{(score * 100).toFixed(0)}%</span>
+                            <span className="text-xs text-gray-500">
+                              {level}{confidence ? ` (${confidence} conf.)` : ''}
+                            </span>
                           </div>
                           <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
                             <div
-                              className={`h-full ${RISK_COLORS[level]} rounded-full transition-all`}
+                              className={`h-full ${RISK_COLORS[level] || 'bg-gray-600'} rounded-full transition-all`}
                               style={{ width: `${percentage}%` }}
                             />
                           </div>
@@ -537,15 +567,45 @@ export default function FeedPage() {
                 <label className="block text-sm font-semibold text-gray-100 mb-2">
                   Detection Reason
                 </label>
-                <textarea
-                  readOnly
-                  value={
-                    typeof selectedFeed.action_agent_output?.reasoning === 'string'
-                      ? selectedFeed.action_agent_output.reasoning
-                      : 'No reasoning available'
+                {(() => {
+                  const classifierReasoning = selectedFeed.classifier_output?.reasoning;
+                  const actionBasis = selectedFeed.action_agent_output?.action_basis;
+                  const hasError = selectedFeed.action_agent_output && 'error' in selectedFeed.action_agent_output;
+                  const stagesCompleted = selectedFeed.stages_completed || [];
+
+                  // Pipeline failed — show error state
+                  if (hasError || stagesCompleted.length === 0) {
+                    return (
+                      <div className="bg-red-900 bg-opacity-30 border border-red-700 rounded-lg p-3">
+                        <p className="text-sm text-red-300 font-medium mb-1">Pipeline Error</p>
+                        <p className="text-xs text-red-200">
+                          The moderation pipeline failed to classify this content. The risk level shown is a default, not an actual assessment.
+                          {selectedFeed.action_agent_output && 'error' in selectedFeed.action_agent_output
+                            ? ` Error: ${(selectedFeed.action_agent_output as Record<string, unknown>).error}`
+                            : ' No stages completed.'}
+                        </p>
+                      </div>
+                    );
                   }
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-sm text-gray-300 focus:outline-none focus:border-blue-500 resize-none h-24"
-                />
+
+                  // Build combined reasoning
+                  const parts: string[] = [];
+                  if (typeof classifierReasoning === 'string' && classifierReasoning.length > 0) {
+                    parts.push(`Classification: ${classifierReasoning}`);
+                  }
+                  if (typeof actionBasis === 'string' && actionBasis.length > 0) {
+                    parts.push(`Action: ${actionBasis}`);
+                  }
+                  const combined = parts.length > 0 ? parts.join('\n\n') : 'No reasoning available';
+
+                  return (
+                    <textarea
+                      readOnly
+                      value={combined}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-sm text-gray-300 focus:outline-none focus:border-blue-500 resize-none h-24"
+                    />
+                  );
+                })()}
               </div>
 
               {/* Adjust Harm Level */}

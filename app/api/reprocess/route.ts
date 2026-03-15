@@ -9,8 +9,8 @@ export const maxDuration = 60; // Allow up to 60s for reprocessing
 
 export async function POST() {
   try {
-    // Find all content items where the pipeline defaulted to "none" / "log"
-    // These are items that were processed when the API was unavailable
+    // Find all content items where the pipeline failed (risk_level = "error")
+    // or where it defaulted to "none" with empty stages (legacy failure format).
     const { data: failedItems, error: fetchError } = await db
       .from("pipeline_runs")
       .select(`
@@ -18,6 +18,7 @@ export async function POST() {
         content_item_id,
         user_id,
         final_risk_level,
+        stages_completed,
         content_items!inner (
           id,
           content,
@@ -28,8 +29,7 @@ export async function POST() {
           raw_data
         )
       `)
-      .eq("final_risk_level", "none")
-      .eq("stages_completed", "{}"); // Empty stages = classifier never ran
+      .or("final_risk_level.eq.error,stages_completed.eq.{}");
 
     if (fetchError) {
       return NextResponse.json(
@@ -39,37 +39,11 @@ export async function POST() {
     }
 
     if (!failedItems || failedItems.length === 0) {
-      // Also try items where stages_completed is null or action_agent has an error
-      const { data: failedItems2, error: fetchError2 } = await db
-        .from("pipeline_runs")
-        .select(`
-          id,
-          content_item_id,
-          user_id,
-          final_risk_level,
-          stages_completed,
-          content_items!inner (
-            id,
-            content,
-            platform,
-            external_id,
-            direction,
-            reach,
-            raw_data
-          )
-        `)
-        .eq("final_risk_level", "none");
-
-      if (fetchError2 || !failedItems2 || failedItems2.length === 0) {
-        return NextResponse.json({
-          message: "No failed items found to reprocess",
-          items_checked: 0,
-          items_reprocessed: 0,
-        });
-      }
-
-      // Use these items instead
-      return await reprocessItems(failedItems2);
+      return NextResponse.json({
+        message: "No failed items found to reprocess",
+        items_checked: 0,
+        items_reprocessed: 0,
+      });
     }
 
     return await reprocessItems(failedItems);
