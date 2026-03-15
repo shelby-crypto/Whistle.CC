@@ -9,8 +9,10 @@ export const maxDuration = 60; // Allow up to 60s for reprocessing
 
 export async function POST() {
   try {
-    // Find all content items where the pipeline failed (risk_level = "error")
-    // or where it defaulted to "none" with empty stages (legacy failure format).
+    // Find all content items where the pipeline failed:
+    // - risk_level = "error" (new format from updated poller)
+    // - stages_completed is empty (classifier never ran)
+    // - risk_level = "none" (legacy failures that were silently stored as safe)
     const { data: failedItems, error: fetchError } = await db
       .from("pipeline_runs")
       .select(`
@@ -29,7 +31,7 @@ export async function POST() {
           raw_data
         )
       `)
-      .or("final_risk_level.eq.error,stages_completed.eq.{}");
+      .or("final_risk_level.eq.error,final_risk_level.eq.none,stages_completed.eq.{}");
 
     if (fetchError) {
       return NextResponse.json(
