@@ -1,0 +1,335 @@
+"use client";
+
+import { useState } from "react";
+import { getSupabaseBrowser } from "@/lib/supabase/browser";
+
+type Step = "input" | "verify";
+
+export default function LoginPage() {
+  const [step, setStep] = useState<Step>("input");
+  const [method, setMethod] = useState<"email" | "phone">("email");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const supabase = getSupabaseBrowser();
+
+  async function handleSendCode(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      if (method === "email") {
+        if (!email.includes("@")) {
+          setError("Please enter a valid email address.");
+          setLoading(false);
+          return;
+        }
+        const { error: otpError } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            shouldCreateUser: true,
+          },
+        });
+        if (otpError) throw otpError;
+      } else {
+        if (!phone || phone.length < 10) {
+          setError("Please enter a valid phone number with country code (e.g., +1...).");
+          setLoading(false);
+          return;
+        }
+        const { error: otpError } = await supabase.auth.signInWithOtp({
+          phone,
+          options: {
+            shouldCreateUser: true,
+          },
+        });
+        if (otpError) throw otpError;
+      }
+
+      setStep("verify");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to send code. Try again.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleVerifyCode(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const verifyPayload =
+        method === "email"
+          ? { email, token: otp, type: "email" as const }
+          : { phone, token: otp, type: "sms" as const };
+
+      const { data, error: verifyError } = await supabase.auth.verifyOtp(verifyPayload);
+
+      if (verifyError) throw verifyError;
+
+      if (data.session) {
+        // Session is set — now ensure user row exists via our callback
+        // For OTP flow, Supabase handles the session directly (no redirect needed)
+        // We need to create the user row in our public.users table
+        await ensureUserRow(data.session.user.id, data.session.user.email ?? data.session.user.phone ?? null);
+
+        // Redirect to dashboard
+        window.location.href = "/";
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Invalid code. Try again.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function ensureUserRow(authId: string, identifier: string | null) {
+    try {
+      // Call our server endpoint to create the user row if needed
+      await fetch("/api/auth/ensure-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auth_id: authId, identifier }),
+      });
+    } catch {
+      // Non-blocking — the user is authenticated regardless
+    }
+  }
+
+  function handleBack() {
+    setStep("input");
+    setOtp("");
+    setError(null);
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
+      <div className="w-full max-w-sm space-y-8">
+        {/* Logo and branding */}
+        <div className="text-center">
+          <div className="mx-auto w-14 h-14 rounded-full bg-teal-500 flex items-center justify-center mb-4">
+            <svg
+              viewBox="0 0 24 24"
+              className="w-7 h-7 text-white"
+              fill="currentColor"
+            >
+              <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-white">NetRef Safety</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            AI-powered content moderation
+          </p>
+        </div>
+
+        {/* Login card */}
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-5">
+          {step === "input" ? (
+            <>
+              <div>
+                <h2 className="text-lg font-semibold text-white">Sign in</h2>
+                <p className="text-sm text-gray-400 mt-1">
+                  We&apos;ll send you a verification code.
+                </p>
+              </div>
+
+              {/* Method toggle */}
+              <div className="flex bg-gray-800 rounded-xl p-1">
+                <button
+                  onClick={() => { setMethod("email"); setError(null); }}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    method === "email"
+                      ? "bg-gray-700 text-white"
+                      : "text-gray-400 hover:text-gray-300"
+                  }`}
+                >
+                  Email
+                </button>
+                <button
+                  onClick={() => { setMethod("phone"); setError(null); }}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    method === "phone"
+                      ? "bg-gray-700 text-white"
+                      : "text-gray-400 hover:text-gray-300"
+                  }`}
+                >
+                  Phone
+                </button>
+              </div>
+
+              <form onSubmit={handleSendCode} className="space-y-4">
+                {method === "email" ? (
+                  <div>
+                    <label
+                      htmlFor="email"
+                      className="block text-sm font-medium text-gray-300 mb-1.5"
+                    >
+                      Email address
+                    </label>
+                    <input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      required
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label
+                      htmlFor="phone"
+                      className="block text-sm font-medium text-gray-300 mb-1.5"
+                    >
+                      Phone number
+                    </label>
+                    <input
+                      id="phone"
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+1 (555) 000-0000"
+                      autoComplete="tel"
+                      required
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+                )}
+
+                {error && (
+                  <p className="text-sm text-red-400 bg-red-900/20 border border-red-900/30 rounded-lg px-3 py-2">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 px-4 rounded-xl text-sm font-semibold bg-teal-500 hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors flex items-center justify-center gap-2"
+                >
+                  {loading && (
+                    <svg
+                      className="animate-spin w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8z"
+                      />
+                    </svg>
+                  )}
+                  {loading ? "Sending code..." : "Send verification code"}
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <div>
+                <h2 className="text-lg font-semibold text-white">
+                  Check your {method === "email" ? "inbox" : "messages"}
+                </h2>
+                <p className="text-sm text-gray-400 mt-1">
+                  Enter the 6-digit code sent to{" "}
+                  <span className="text-white font-medium">
+                    {method === "email" ? email : phone}
+                  </span>
+                </p>
+              </div>
+
+              <form onSubmit={handleVerifyCode} className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="otp"
+                    className="block text-sm font-medium text-gray-300 mb-1.5"
+                  >
+                    Verification code
+                  </label>
+                  <input
+                    id="otp"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                    placeholder="000000"
+                    autoFocus
+                    required
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm text-center tracking-[0.5em] text-lg font-mono"
+                  />
+                </div>
+
+                {error && (
+                  <p className="text-sm text-red-400 bg-red-900/20 border border-red-900/30 rounded-lg px-3 py-2">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading || otp.length < 6}
+                  className="w-full py-3 px-4 rounded-xl text-sm font-semibold bg-teal-500 hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors flex items-center justify-center gap-2"
+                >
+                  {loading && (
+                    <svg
+                      className="animate-spin w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8z"
+                      />
+                    </svg>
+                  )}
+                  {loading ? "Verifying..." : "Verify & sign in"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="w-full py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                  Use a different {method === "email" ? "email" : "number"}
+                </button>
+              </form>
+            </>
+          )}
+        </div>
+
+        <p className="text-center text-xs text-gray-600">
+          By signing in, you agree to our terms of service.
+        </p>
+      </div>
+    </div>
+  );
+}

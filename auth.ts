@@ -416,7 +416,7 @@ export const authConfig: NextAuthConfig = {
   },
 
   pages: {
-    signIn: "/connect",
+    signIn: "/connect",   // OAuth account linking happens from the Connect page
     error: "/auth/error",
   },
 };

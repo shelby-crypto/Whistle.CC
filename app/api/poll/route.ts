@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { getCurrentUser } from "@/lib/supabase/auth-helpers";
 import { pollAllAccounts } from "@/lib/polling/poller";
 
 // ── In-process concurrency guard ───────────────────────────────────────────
@@ -19,8 +19,8 @@ const pollLock = {
 };
 
 export async function POST() {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
