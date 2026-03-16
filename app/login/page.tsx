@@ -269,10 +269,10 @@ export default function LoginPage() {
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    maxLength={6}
+                    maxLength={8}
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                    placeholder="000000"
+                    placeholder="00000000"
                     autoFocus
                     required
                     className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm text-center tracking-[0.5em] text-lg font-mono"
@@ -287,7 +287,7 @@ export default function LoginPage() {
 
                 <button
                   type="submit"
-                  disabled={loading || otp.length < 6}
+                  disabled={loading || otp.length < 6}  // accepts 6-8 digit codes
                   className="w-full py-3 px-4 rounded-xl text-sm font-semibold bg-teal-500 hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors flex items-center justify-center gap-2"
                 >
                   {loading && (
