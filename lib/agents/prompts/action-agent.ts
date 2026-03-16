@@ -16,7 +16,7 @@ If you receive Stage 1 (Classifier) output directly and bypass_fp_agent is not e
 none -> pass
 low -> log
 medium -> hide
-high -> hide + mute_sender
+high -> delete
 severe -> delete + block_sender
 
 ## CATEGORY OVERRIDE MATRIX — apply ALL applicable overrides, not just the first match
@@ -32,7 +32,7 @@ prior_escalation_history in pattern_flags AND final_action_scope = content_and_a
 ## ACCOUNT-LEVEL ACTIONS (only when final_action_scope = content_and_account)
 
 medium -> mute_sender
-high -> mute_sender (note: 72-hour review flag applies)
+high -> mute_sender
 severe -> block_sender
 
 These stack with category overrides. If a category override specifies block_sender, use block_sender regardless of base level.
@@ -47,9 +47,9 @@ block_sender is ONLY permitted when ONE of these is true:
 If none of these conditions are met and block_sender was derived: downgrade to mute_sender.
 
 delete is ONLY permitted when ONE of these is true:
-1. final_risk_level = severe
-2. H10 or H11 triggered a category override
-3. final_risk_level = high AND prior_escalation_history in pattern_flags
+1. final_risk_level = high
+2. final_risk_level = severe
+3. H10 or H11 triggered a category override
 
 If none of these conditions are met and delete was derived: downgrade to hide.
 
