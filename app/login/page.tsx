@@ -65,42 +65,75 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const verifyPayload =
-        method === "email"
-          ? { email, token: otp, type: "email" as const }
-          : { phone, token: otp, type: "sms" as const };
+      // signInWithOtp uses the magic link flow — verify with "magiclink" type for email.
+      // Try magiclink first, fall back to "email" if it fails (covers both Supabase configs).
+      let data;
+      let verifyError;
 
-      const { data, error: verifyError } = await supabase.auth.verifyOtp(verifyPayload);
+      if (method === "email") {
+        // Try magiclink type first (used when "Confirm email" is OFF)
+        const result = await supabase.auth.verifyOtp({
+          email,
+          token: otp,
+          type: "magiclink",
+        });
+        data = result.data;
+        verifyError = result.error;
+
+        // If magiclink type failed, try email type (used when "Confirm email" is ON)
+        if (verifyError) {
+          const fallback = await supabase.auth.verifyOtp({
+            email,
+            token: otp,
+            type: "email",
+          });
+          data = fallback.data;
+          verifyError = fallback.error;
+        }
+      } else {
+        const result = await supabase.auth.verifyOtp({
+          phone,
+          token: otp,
+          type: "sms",
+        });
+        data = result.data;
+        verifyError = result.error;
+      }
 
       if (verifyError) throw verifyError;
 
-      if (data.session) {
-        // Ensure user row exists in our public.users table
-        await ensureUserRow(data.session.user.id, data.session.user.email ?? data.session.user.phone ?? null);
+      // Get the session — either from the verify response or from the current session
+      const session = data?.session ?? (await supabase.auth.getSession()).data.session;
 
-        // Set the session cookie so the server-side middleware recognizes the user.
-        // The Supabase browser client stores the session in localStorage, but our
-        // middleware reads from cookies — we need to bridge the two.
-        await fetch("/api/auth/set-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            access_token: data.session.access_token,
-            refresh_token: data.session.refresh_token,
-            expires_at: data.session.expires_at,
-            expires_in: data.session.expires_in,
-            token_type: data.session.token_type,
-            user: {
-              id: data.session.user.id,
-              email: data.session.user.email,
-              phone: data.session.user.phone,
-            },
-          }),
-        });
-
-        // Redirect to dashboard
-        window.location.href = "/";
+      if (!session) {
+        throw new Error("Verification succeeded but no session was created. Please try again.");
       }
+
+      // Ensure user row exists in our public.users table
+      await ensureUserRow(session.user.id, session.user.email ?? session.user.phone ?? null);
+
+      // Set the session cookie so the server-side middleware recognizes the user.
+      // The Supabase browser client stores the session in localStorage, but our
+      // middleware reads from cookies — we need to bridge the two.
+      await fetch("/api/auth/set-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+          expires_at: session.expires_at,
+          expires_in: session.expires_in,
+          token_type: session.token_type,
+          user: {
+            id: session.user.id,
+            email: session.user.email,
+            phone: session.user.phone,
+          },
+        }),
+      });
+
+      // Redirect to dashboard
+      window.location.href = "/";
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Invalid code. Try again.";
       setError(message);
