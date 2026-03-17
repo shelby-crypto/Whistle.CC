@@ -75,10 +75,28 @@ export default function LoginPage() {
       if (verifyError) throw verifyError;
 
       if (data.session) {
-        // Session is set — now ensure user row exists via our callback
-        // For OTP flow, Supabase handles the session directly (no redirect needed)
-        // We need to create the user row in our public.users table
+        // Ensure user row exists in our public.users table
         await ensureUserRow(data.session.user.id, data.session.user.email ?? data.session.user.phone ?? null);
+
+        // Set the session cookie so the server-side middleware recognizes the user.
+        // The Supabase browser client stores the session in localStorage, but our
+        // middleware reads from cookies — we need to bridge the two.
+        await fetch("/api/auth/set-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+            expires_at: data.session.expires_at,
+            expires_in: data.session.expires_in,
+            token_type: data.session.token_type,
+            user: {
+              id: data.session.user.id,
+              email: data.session.user.email,
+              phone: data.session.user.phone,
+            },
+          }),
+        });
 
         // Redirect to dashboard
         window.location.href = "/";
@@ -249,7 +267,7 @@ export default function LoginPage() {
                   Check your {method === "email" ? "inbox" : "messages"}
                 </h2>
                 <p className="text-sm text-gray-400 mt-1">
-                  Enter the 6-digit code sent to{" "}
+                  Enter the verification code sent to{" "}
                   <span className="text-white font-medium">
                     {method === "email" ? email : phone}
                   </span>
