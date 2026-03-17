@@ -7,9 +7,7 @@ type Step = "input" | "verify";
 
 export default function LoginPage() {
   const [step, setStep] = useState<Step>("input");
-  const [method, setMethod] = useState<"email" | "phone">("email");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,33 +20,18 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      if (method === "email") {
-        if (!email.includes("@")) {
-          setError("Please enter a valid email address.");
-          setLoading(false);
-          return;
-        }
-        const { error: otpError } = await supabase.auth.signInWithOtp({
-          email,
-          options: {
-            shouldCreateUser: true,
-          },
-        });
-        if (otpError) throw otpError;
-      } else {
-        if (!phone || phone.length < 10) {
-          setError("Please enter a valid phone number with country code (e.g., +1...).");
-          setLoading(false);
-          return;
-        }
-        const { error: otpError } = await supabase.auth.signInWithOtp({
-          phone,
-          options: {
-            shouldCreateUser: true,
-          },
-        });
-        if (otpError) throw otpError;
+      if (!email.includes("@")) {
+        setError("Please enter a valid email address.");
+        setLoading(false);
+        return;
       }
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: true,
+        },
+      });
+      if (otpError) throw otpError;
 
       setStep("verify");
     } catch (err: unknown) {
@@ -70,34 +53,24 @@ export default function LoginPage() {
       let data;
       let verifyError;
 
-      if (method === "email") {
-        // Try magiclink type first (used when "Confirm email" is OFF)
-        const result = await supabase.auth.verifyOtp({
+      // Try magiclink type first (used when "Confirm email" is OFF)
+      const result = await supabase.auth.verifyOtp({
+        email,
+        token: otp,
+        type: "magiclink",
+      });
+      data = result.data;
+      verifyError = result.error;
+
+      // If magiclink type failed, try email type (used when "Confirm email" is ON)
+      if (verifyError) {
+        const fallback = await supabase.auth.verifyOtp({
           email,
           token: otp,
-          type: "magiclink",
+          type: "email",
         });
-        data = result.data;
-        verifyError = result.error;
-
-        // If magiclink type failed, try email type (used when "Confirm email" is ON)
-        if (verifyError) {
-          const fallback = await supabase.auth.verifyOtp({
-            email,
-            token: otp,
-            type: "email",
-          });
-          data = fallback.data;
-          verifyError = fallback.error;
-        }
-      } else {
-        const result = await supabase.auth.verifyOtp({
-          phone,
-          token: otp,
-          type: "sms",
-        });
-        data = result.data;
-        verifyError = result.error;
+        data = fallback.data;
+        verifyError = fallback.error;
       }
 
       if (verifyError) throw verifyError;
@@ -110,7 +83,7 @@ export default function LoginPage() {
       }
 
       // Ensure user row exists in our public.users table
-      await ensureUserRow(session.user.id, session.user.email ?? session.user.phone ?? null);
+      await ensureUserRow(session.user.id, session.user.email ?? null);
 
       // Set the session cookie so the server-side middleware recognizes the user.
       // The Supabase browser client stores the session in localStorage, but our
@@ -144,14 +117,13 @@ export default function LoginPage() {
 
   async function ensureUserRow(authId: string, identifier: string | null) {
     try {
-      // Call our server endpoint to create the user row if needed
       await fetch("/api/auth/ensure-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ auth_id: authId, identifier }),
       });
     } catch {
-      // Non-blocking — the user is authenticated regardless
+      // Non-blocking
     }
   }
 
@@ -188,74 +160,29 @@ export default function LoginPage() {
               <div>
                 <h2 className="text-lg font-semibold text-white">Sign in</h2>
                 <p className="text-sm text-gray-400 mt-1">
-                  We&apos;ll send you a verification code.
+                  We&apos;ll send a verification code to your email.
                 </p>
               </div>
 
-              {/* Method toggle */}
-              <div className="flex bg-gray-800 rounded-xl p-1">
-                <button
-                  onClick={() => { setMethod("email"); setError(null); }}
-                  className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    method === "email"
-                      ? "bg-gray-700 text-white"
-                      : "text-gray-400 hover:text-gray-300"
-                  }`}
-                >
-                  Email
-                </button>
-                <button
-                  onClick={() => { setMethod("phone"); setError(null); }}
-                  className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    method === "phone"
-                      ? "bg-gray-700 text-white"
-                      : "text-gray-400 hover:text-gray-300"
-                  }`}
-                >
-                  Phone
-                </button>
-              </div>
-
               <form onSubmit={handleSendCode} className="space-y-4">
-                {method === "email" ? (
-                  <div>
-                    <label
-                      htmlFor="email"
-                      className="block text-sm font-medium text-gray-300 mb-1.5"
-                    >
-                      Email address
-                    </label>
-                    <input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@example.com"
-                      autoComplete="email"
-                      required
-                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <label
-                      htmlFor="phone"
-                      className="block text-sm font-medium text-gray-300 mb-1.5"
-                    >
-                      Phone number
-                    </label>
-                    <input
-                      id="phone"
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+1 (555) 000-0000"
-                      autoComplete="tel"
-                      required
-                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
-                    />
-                  </div>
-                )}
+                <div>
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-medium text-gray-300 mb-1.5"
+                  >
+                    Email address
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    required
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+                  />
+                </div>
 
                 {error && (
                   <p className="text-sm text-red-400 bg-red-900/20 border border-red-900/30 rounded-lg px-3 py-2">
@@ -297,13 +224,11 @@ export default function LoginPage() {
             <>
               <div>
                 <h2 className="text-lg font-semibold text-white">
-                  Check your {method === "email" ? "inbox" : "messages"}
+                  Check your inbox
                 </h2>
                 <p className="text-sm text-gray-400 mt-1">
                   Enter the verification code sent to{" "}
-                  <span className="text-white font-medium">
-                    {method === "email" ? email : phone}
-                  </span>
+                  <span className="text-white font-medium">{email}</span>
                 </p>
               </div>
 
@@ -326,7 +251,7 @@ export default function LoginPage() {
                     placeholder="00000000"
                     autoFocus
                     required
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm text-center tracking-[0.5em] text-lg font-mono"
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm text-center tracking-[0.3em] text-lg font-mono"
                   />
                 </div>
 
@@ -338,7 +263,7 @@ export default function LoginPage() {
 
                 <button
                   type="submit"
-                  disabled={loading || otp.length < 6}  // accepts 6-8 digit codes
+                  disabled={loading || otp.length < 8}
                   className="w-full py-3 px-4 rounded-xl text-sm font-semibold bg-teal-500 hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors flex items-center justify-center gap-2"
                 >
                   {loading && (
@@ -370,7 +295,7 @@ export default function LoginPage() {
                   onClick={handleBack}
                   className="w-full py-2 text-sm text-gray-400 hover:text-white transition-colors"
                 >
-                  Use a different {method === "email" ? "email" : "number"}
+                  Use a different email
                 </button>
               </form>
             </>
