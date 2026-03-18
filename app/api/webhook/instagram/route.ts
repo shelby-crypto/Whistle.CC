@@ -3,19 +3,16 @@ import { db } from "@/lib/db/supabase";
 import { processContentItem, contentExists } from "@/lib/polling/poller";
 
 // ── Instagram Webhook Handler ───────────────────────────────────────────────
-// Receives real-time comment notifications from Meta's webhook system.
+// Receives real-time notifications from Meta's webhook system:
+//   - Comments on posts  → processed through moderation pipeline
+//   - DMs (new conversations only) → scanned + sender restricted if harmful
 //
-// GET  → Verification challenge (Meta sends this once when you register the webhook)
-// POST → Incoming events (comment created, etc.)
-//
-// Flow: Meta pushes event → we look up which app user owns the IG account →
-//       fetch the comment text → run it through the moderation pipeline.
+// GET  → Verification challenge (Meta sends this once when you register)
+// POST → Incoming events
 
 const VERIFY_TOKEN = process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN ?? "";
 
 // ── GET: Webhook verification challenge ─────────────────────────────────────
-// Meta sends: GET ?hub.mode=subscribe&hub.verify_token=<token>&hub.challenge=<challenge>
-// We must return the challenge value if the token matches.
 
 export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams;
@@ -31,7 +28,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ error: "Verification failed" }, { status: 403 });
 }
 
-// ── POST: Incoming webhook events ───────────────────────────────────────────
+// ── Types ────────────────────────────────────────────────────────────────────
 
 interface WebhookComment {
   id: string;
@@ -41,15 +38,29 @@ interface WebhookComment {
   media?: { id: string };
 }
 
+interface WebhookMessage {
+  mid: string;          // Message ID
+  text?: string;        // Message text (may be absent for media messages)
+  timestamp?: number;
+}
+
+interface WebhookMessaging {
+  sender: { id: string };
+  recipient: { id: string };
+  timestamp: number;
+  message?: WebhookMessage;
+}
+
 interface WebhookChange {
   field: string;
   value: WebhookComment;
 }
 
 interface WebhookEntry {
-  id: string; // Instagram user ID that owns the media
+  id: string;
   time: number;
   changes?: WebhookChange[];
+  messaging?: WebhookMessaging[];
 }
 
 interface WebhookPayload {
@@ -57,10 +68,48 @@ interface WebhookPayload {
   entry?: WebhookEntry[];
 }
 
-export async function POST(req: NextRequest) {
-  // Meta expects a 200 response quickly — process async
-  // But for our use case, processing is fast enough to do inline.
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
+async function lookupAppUser(igUserId: string): Promise<string | null> {
+  const { data } = await db
+    .from("platform_tokens")
+    .select("user_id")
+    .eq("platform", "instagram")
+    .eq("platform_user_id", igUserId)
+    .eq("status", "active")
+    .maybeSingle();
+  return data?.user_id ?? null;
+}
+
+/** Returns true if the sender is a NEW conversation (never replied to). */
+async function isNewConversation(userId: string, senderIgId: string, senderUsername: string | null): Promise<boolean> {
+  // Check if we've seen this sender before
+  const { data: existing } = await db
+    .from("dm_conversations")
+    .select("is_new")
+    .eq("user_id", userId)
+    .eq("sender_ig_id", senderIgId)
+    .maybeSingle();
+
+  if (existing) {
+    // Already tracked — return whether it's still new (user hasn't replied)
+    return existing.is_new;
+  }
+
+  // First time seeing this sender — insert as new conversation
+  await db.from("dm_conversations").insert({
+    user_id: userId,
+    sender_ig_id: senderIgId,
+    sender_username: senderUsername,
+    is_new: true,
+  });
+
+  return true;
+}
+
+// ── POST: Incoming webhook events ───────────────────────────────────────────
+
+export async function POST(req: NextRequest) {
   let body: WebhookPayload;
   try {
     body = await req.json();
@@ -68,41 +117,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // Only handle Instagram comments
   if (body.object !== "instagram") {
     return NextResponse.json({ received: true });
   }
 
   const errors: string[] = [];
-  let processed = 0;
+  let commentsProcessed = 0;
+  let dmsProcessed = 0;
 
   for (const entry of body.entry ?? []) {
-    const igUserId = entry.id; // The IG account that received the comment
+    const igUserId = entry.id;
 
-    // Look up which app user owns this Instagram account
-    const { data: tokenRow } = await db
-      .from("platform_tokens")
-      .select("user_id")
-      .eq("platform", "instagram")
-      .eq("platform_user_id", igUserId)
-      .eq("status", "active")
-      .maybeSingle();
-
-    if (!tokenRow) {
-      console.warn("[webhook/instagram] No active token found for IG user:", igUserId);
+    const userId = await lookupAppUser(igUserId);
+    if (!userId) {
+      console.warn("[webhook/instagram] No active token for IG user:", igUserId);
       continue;
     }
 
-    const userId = tokenRow.user_id;
-
+    // ── Handle comment events ────────────────────────────────────────────
     for (const change of entry.changes ?? []) {
-      // We only care about comment events
       if (change.field !== "comments") continue;
 
       const comment = change.value;
       if (!comment?.id || !comment?.text) continue;
-
-      // Skip if we've already processed this comment (deduplication)
       if (await contentExists("instagram", comment.id)) continue;
 
       try {
@@ -112,28 +149,72 @@ export async function POST(req: NextRequest) {
           externalId: comment.id,
           text: comment.text,
           authorHandle: comment.from?.username ?? "instagram_user",
-          authorId: null, // Instagram doesn't provide commenter user IDs for moderation
+          authorId: null,
           createdAt: comment.timestamp
             ? new Date(comment.timestamp * 1000).toISOString()
             : new Date().toISOString(),
           rawData: {
             mediaId: comment.media?.id ?? null,
             from: comment.from ?? null,
+            contentType: "comment",
             webhookTriggered: true,
           },
           errors,
         });
-
-        if (ok) processed++;
+        if (ok) commentsProcessed++;
       } catch (err) {
-        console.error("[webhook/instagram] Error processing comment:", comment.id, err);
+        console.error("[webhook/instagram] Comment error:", comment.id, err);
         errors.push(`Comment ${comment.id}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    // ── Handle DM events (new conversations only) ────────────────────────
+    for (const msg of entry.messaging ?? []) {
+      // Only process incoming messages (sender is NOT the account owner)
+      if (msg.sender.id === igUserId) continue;
+
+      const message = msg.message;
+      if (!message?.mid || !message?.text) continue;
+
+      // Deduplicate
+      if (await contentExists("instagram", `dm_${message.mid}`)) continue;
+
+      const senderIgId = msg.sender.id;
+
+      // Only scan if this is a new/first-contact conversation
+      const isNew = await isNewConversation(userId, senderIgId, null);
+      if (!isNew) {
+        console.log("[webhook/instagram] Skipping DM from known sender:", senderIgId);
+        continue;
+      }
+
+      try {
+        const ok = await processContentItem({
+          userId,
+          platform: "instagram",
+          externalId: `dm_${message.mid}`,
+          text: message.text,
+          authorHandle: `ig_user_${senderIgId}`,
+          authorId: senderIgId,
+          createdAt: msg.timestamp
+            ? new Date(msg.timestamp * 1000).toISOString()
+            : new Date().toISOString(),
+          rawData: {
+            senderId: senderIgId,
+            contentType: "dm",
+            webhookTriggered: true,
+          },
+          errors,
+          contentType: "dm",
+        });
+        if (ok) dmsProcessed++;
+      } catch (err) {
+        console.error("[webhook/instagram] DM error:", message.mid, err);
+        errors.push(`DM ${message.mid}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   }
 
-  console.log(`[webhook/instagram] Processed ${processed} comments, ${errors.length} errors`);
-
-  // Meta requires a 200 response — anything else triggers retries
-  return NextResponse.json({ received: true, processed, errors: errors.length });
+  console.log(`[webhook/instagram] Comments: ${commentsProcessed}, DMs: ${dmsProcessed}, Errors: ${errors.length}`);
+  return NextResponse.json({ received: true, commentsProcessed, dmsProcessed, errors: errors.length });
 }

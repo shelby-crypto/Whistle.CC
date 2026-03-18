@@ -167,8 +167,9 @@ export async function processContentItem(params: {
   createdAt: string;
   rawData: Record<string, unknown>;
   errors: string[];
+  contentType?: "comment" | "dm";
 }): Promise<boolean> {
-  const { userId, platform, externalId, text, authorHandle, authorId, createdAt, rawData, errors } = params;
+  const { userId, platform, externalId, text, authorHandle, authorId, createdAt, rawData, errors, contentType = "comment" } = params;
 
   try {
     const normalized = normalizeContent(
@@ -202,6 +203,7 @@ export async function processContentItem(params: {
         platform,
         external_id: externalId,
         content: text,
+        content_type: contentType,
         author_handle: authorHandle,
         direction: normalized.direction,
         reach: normalized.reach,
