@@ -15,6 +15,8 @@ export function middleware(request: NextRequest) {
     "/login",
     "/auth",           // Supabase auth callbacks
     "/api/auth",       // Both NextAuth and our auth endpoints
+    "/api/webhook",    // Meta webhook callbacks (unauthenticated)
+    "/api/cron",       // Vercel cron jobs (secured by CRON_SECRET)
     "/_next",          // Next.js internals
     "/favicon.ico",
   ];

@@ -66,7 +66,7 @@ async function setPollCursor(userId: string, platform: string, lastSeenId: strin
   if (error) console.error("[poller] setPollCursor failed:", error.message);
 }
 
-async function contentExists(platform: string, externalId: string): Promise<boolean> {
+export async function contentExists(platform: string, externalId: string): Promise<boolean> {
   const { data } = await db
     .from("content_items")
     .select("id")
@@ -157,7 +157,7 @@ async function executePlatformActions(params: {
 
 // ── Process a single content item through the full pipeline ───────────────
 
-async function processContentItem(params: {
+export async function processContentItem(params: {
   userId: string;
   platform: "twitter" | "instagram";
   externalId: string;
