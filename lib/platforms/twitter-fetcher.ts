@@ -192,4 +192,40 @@ export async function blockSender(userId: string, senderUserId: string): Promise
   }
 }
 
+// ── unblockUser ───────────────────────────────────────────────────────────
+// Reverses a block that Whistle previously placed on a user.
+// Twitter API: DELETE /2/users/{source_user_id}/blocking/{target_user_id}
+
+export async function unblockUser(
+  userId: string,
+  targetUserId: string
+): Promise<{ success: boolean; error?: string }> {
+  const active = await getActiveToken(userId, "twitter");
+  if (!active) {
+    return { success: false, error: "No active Twitter token" };
+  }
+
+  try {
+    const res = await fetch(
+      `https://api.twitter.com/2/users/${active.platformUserId}/blocking/${targetUserId}`,
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${active.accessToken}` },
+      }
+    );
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "(unreadable)");
+      console.error(`[twitter] unblockUser failed, status: ${res.status}, body: ${errBody}`);
+      return { success: false, error: `Twitter API returned ${res.status}` };
+    }
+
+    return { success: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[twitter] unblockUser threw:", err);
+    return { success: false, error: message };
+  }
+}
+
 export type { TwitterContent };

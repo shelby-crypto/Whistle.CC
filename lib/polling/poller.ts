@@ -4,6 +4,8 @@ import { fetchRecentComments, hideComment, deleteComment } from "@/lib/platforms
 import { normalizeContent } from "@/lib/platforms/normalizer";
 import { runPipeline } from "@/lib/agents/pipeline";
 import { isPipelineError } from "@/lib/agents/types";
+import { loadExplicitAllowlistSet, checkAllowlist } from "@/lib/allowlist/check";
+import { fetchFollowedAccounts } from "@/lib/allowlist/followed-accounts";
 import type { PollResult, ActionAgentOutput } from "@/lib/agents/types";
 
 // ── Retry helper ───────────────────────────────────────────────────────────
@@ -168,10 +170,76 @@ export async function processContentItem(params: {
   rawData: Record<string, unknown>;
   errors: string[];
   contentType?: "comment" | "dm";
+  allowlistSet?: Set<string>;
 }): Promise<boolean> {
-  const { userId, platform, externalId, text, authorHandle, authorId, createdAt, rawData, errors, contentType = "comment" } = params;
+  const { userId, platform, externalId, text, authorHandle, authorId, createdAt, rawData, errors, contentType = "comment", allowlistSet } = params;
 
   try {
+    // ── Allowlist check ────────────────────────────────────────────────────
+    // If an allowlist set was provided, check whether this content's author
+    // is on it. If so, skip the entire AI pipeline and log for auditability.
+    if (allowlistSet && allowlistSet.size > 0) {
+      const { allowed, reason } = checkAllowlist(allowlistSet, authorId, authorHandle);
+
+      if (allowed) {
+        // Still insert the content item for record-keeping
+        const { data: contentItem } = await db
+          .from("content_items")
+          .insert({
+            user_id: userId,
+            platform,
+            external_id: externalId,
+            content: text,
+            content_type: contentType,
+            author_handle: authorHandle,
+            direction: "direct",
+            reach: "low",
+            velocity: "moderate",
+            raw_data: rawData,
+            ingested_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single();
+
+        // Log a pipeline_run with risk_level "skipped" for audit trail
+        const { data: pipelineRun } = await db.from("pipeline_runs").insert({
+          content_item_id: contentItem?.id,
+          user_id: userId,
+          classifier_output: { reason, author: authorHandle },
+          fp_checker_output: null,
+          action_agent_output: { content_action: "none", account_action: "none" },
+          stages_completed: [],
+          final_risk_level: "skipped",
+          content_action: "pass",
+          account_action: "none",
+          supplementary_actions: [],
+          safety_override_applied: false,
+          duration_ms: 0,
+          created_at: new Date().toISOString(),
+        }).select("id").single();
+
+        // Write audit log
+        await db.from("audit_log").insert({
+          pipeline_run_id: pipelineRun?.id,
+          content_item_id: contentItem?.id,
+          user_id: userId,
+          input_text: text,
+          final_risk_level: "skipped",
+          content_action: "pass",
+          account_action: "none",
+          pipeline_stages_completed: [],
+          irreversible_action_justification: null,
+          safety_override_applied: false,
+          logged_at: new Date().toISOString(),
+        });
+
+        console.log(
+          `[poller] Skipped moderation for ${authorHandle} (${reason}) on ${platform}/${externalId}`
+        );
+        return true; // Count as successfully processed
+      }
+    }
+
     const normalized = normalizeContent(
       platform === "twitter"
         ? {
@@ -337,6 +405,13 @@ export async function pollAllAccounts(): Promise<PollResult> {
       accountsPolled++;
 
       try {
+        // ── Build combined allowlist for this user+platform ───────────────
+        // Load explicit allowlist from DB + fetch followed accounts from platform API.
+        // Merge into a single Set for O(1) lookups during content processing.
+        const explicitAllowlist = await loadExplicitAllowlistSet(userId, platform);
+        const followedAccounts = await fetchFollowedAccounts(userId, platform);
+        const combinedAllowlistSet = new Set([...explicitAllowlist, ...followedAccounts]);
+
         if (platform === "twitter") {
           const sinceId = await getPollCursor(userId, "twitter");
           const mentions = await withRetry(
@@ -364,6 +439,7 @@ export async function pollAllAccounts(): Promise<PollResult> {
                 createdAt: mention.createdAt,
               },
               errors,
+              allowlistSet: combinedAllowlistSet,
             });
 
             if (ok) {
@@ -400,6 +476,7 @@ export async function pollAllAccounts(): Promise<PollResult> {
                 createdAt: comment.createdAt,
               },
               errors,
+              allowlistSet: combinedAllowlistSet,
             });
 
             if (ok) pipelineRunsCreated++;

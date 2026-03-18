@@ -146,6 +146,14 @@ const levelToPercentage = (level: string): number => {
   return LEVEL_PERCENTAGES[level] ?? 0;
 };
 
+function ShieldCheckIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
 export default function FeedPage() {
   const [feeds, setFeeds] = useState<PipelineRun[]>([]);
   const [filteredFeeds, setFilteredFeeds] = useState<PipelineRun[]>([]);
@@ -157,6 +165,34 @@ export default function FeedPage() {
   const [selectedFeed, setSelectedFeed] = useState<PipelineRun | null>(null);
   const [contentHidden, setContentHidden] = useState(true);
   const [adjustedHarmLevel, setAdjustedHarmLevel] = useState<string | null>(null);
+  const [allowlistNotice, setAllowlistNotice] = useState<string | null>(null);
+
+  // Quick-add to allowlist from feed
+  const handleAddToAllowlist = async (authorHandle: string, platform: string) => {
+    if (!authorHandle) return;
+    try {
+      const res = await fetch('/api/allowlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platform,
+          platform_username: authorHandle,
+          note: 'Added from feed',
+        }),
+      });
+      if (res.ok) {
+        setAllowlistNotice(`@${authorHandle} added to allowlist`);
+        setTimeout(() => setAllowlistNotice(null), 3000);
+      } else {
+        const data = await res.json();
+        setAllowlistNotice(data.error || 'Failed to add');
+        setTimeout(() => setAllowlistNotice(null), 3000);
+      }
+    } catch {
+      setAllowlistNotice('Network error');
+      setTimeout(() => setAllowlistNotice(null), 3000);
+    }
+  };
 
   // Fetch data from Supabase
   useEffect(() => {
@@ -320,6 +356,14 @@ export default function FeedPage() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
+      {/* Allowlist Toast Notification */}
+      {allowlistNotice && (
+        <div className="fixed top-4 right-4 z-50 bg-teal-600 text-white px-4 py-3 rounded-lg shadow-lg text-sm font-medium flex items-center gap-2 animate-pulse">
+          <ShieldCheckIcon className="w-4 h-4" />
+          {allowlistNotice}
+        </div>
+      )}
+
       {/* Header */}
       <div className="border-b border-gray-800 bg-gray-900 p-6">
         <h1 className="text-3xl font-bold mb-6">Content Moderation</h1>
@@ -646,13 +690,26 @@ export default function FeedPage() {
                 </div>
               )}
 
-              {/* Close Button */}
-              <button
-                onClick={() => setDetailModalOpen(false)}
-                className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-sm font-medium transition-colors"
-              >
-                Close
-              </button>
+              {/* Add to Allowlist + Close Buttons */}
+              <div className="flex gap-3">
+                {selectedFeed.author_handle && (
+                  <button
+                    onClick={() => {
+                      handleAddToAllowlist(selectedFeed.author_handle!, selectedFeed.platform || 'twitter');
+                    }}
+                    className="flex items-center justify-center gap-2 flex-1 px-4 py-2 bg-teal-600 hover:bg-teal-500 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <ShieldCheckIcon className="w-4 h-4" />
+                    Add to Allowlist
+                  </button>
+                )}
+                <button
+                  onClick={() => setDetailModalOpen(false)}
+                  className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
