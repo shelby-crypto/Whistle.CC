@@ -116,11 +116,11 @@ export default function BlockedUsersPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
       {/* Header */}
-      <div className="border-b border-gray-800 bg-gray-900 p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="border-b border-gray-800 bg-gray-900 p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
           <div>
-            <h1 className="text-3xl font-bold">Blocked Users</h1>
-            <p className="text-gray-400 mt-1">
+            <h1 className="text-xl sm:text-3xl font-bold">Blocked Users</h1>
+            <p className="text-sm text-gray-400 mt-1">
               Users blocked by Whistle on your behalf
             </p>
           </div>
@@ -140,7 +140,7 @@ export default function BlockedUsersPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
           <div className="relative flex-1">
             <SearchIcon className="absolute left-3 top-2.5 w-4 h-4 text-gray-500" />
             <input
@@ -151,165 +151,145 @@ export default function BlockedUsersPage() {
               className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
             />
           </div>
-          <select
-            value={platformFilter}
-            onChange={(e) => setPlatformFilter(e.target.value)}
-            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
-          >
-            <option value="all">All Platforms</option>
-            <option value="twitter">Twitter</option>
-            <option value="instagram">Instagram</option>
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="reversed">Reversed</option>
-          </select>
+          <div className="flex gap-2">
+            <select
+              value={platformFilter}
+              onChange={(e) => setPlatformFilter(e.target.value)}
+              className="flex-1 sm:flex-none bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+            >
+              <option value="all">All Platforms</option>
+              <option value="twitter">Twitter</option>
+              <option value="instagram">Instagram</option>
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="flex-1 sm:flex-none bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="reversed">Reversed</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="p-6">
+      {/* Content */}
+      <div className="p-4 sm:p-6">
         {filtered.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-gray-400 text-lg mb-2">
+          <div className="text-center py-12 sm:py-16">
+            <p className="text-gray-400 text-base sm:text-lg mb-2">
               {blockedUsers.length === 0 ? 'No users have been blocked yet' : 'No matches found'}
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-xs sm:text-sm text-gray-500">
               {blockedUsers.length === 0
                 ? 'When Whistle blocks someone on your behalf, they will appear here.'
                 : 'Try adjusting your filters.'}
             </p>
           </div>
         ) : (
-          <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-800 border-b border-gray-700">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Username</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Platform</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Blocked Date</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Risk Level</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Status</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((user) => (
-                  <>
-                    <tr
-                      key={user.id}
-                      onClick={() => setExpandedId(expandedId === user.id ? null : user.id)}
-                      className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors cursor-pointer"
-                    >
-                      <td className="px-4 py-3 text-sm text-white font-medium">
-                        {user.author_handle ? `@${user.author_handle}` : user.author_id || 'Unknown'}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          user.platform === 'twitter'
-                            ? 'bg-blue-500 bg-opacity-20 text-blue-400'
-                            : 'bg-pink-500 bg-opacity-20 text-pink-400'
-                        }`}>
-                          {user.platform}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-400">
-                        {new Date(user.blocked_at).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${RISK_COLORS[user.risk_level] || RISK_COLORS.none}`}>
-                          {user.risk_level}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          user.reversed
-                            ? 'bg-gray-500 bg-opacity-20 text-gray-400'
-                            : 'bg-red-500 bg-opacity-20 text-red-400'
-                        }`}>
-                          {user.reversed ? 'Reversed' : 'Active'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                        {!user.reversed && user.platform === 'twitter' && (
-                          <>
-                            {unblockConfirmId === user.id ? (
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-800 border-b border-gray-700">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Username</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Platform</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Blocked Date</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Risk Level</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Status</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((user) => (
+                    <>
+                      <tr key={user.id} onClick={() => setExpandedId(expandedId === user.id ? null : user.id)} className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors cursor-pointer">
+                        <td className="px-4 py-3 text-sm text-white font-medium">{user.author_handle ? `@${user.author_handle}` : user.author_id || 'Unknown'}</td>
+                        <td className="px-4 py-3 text-sm"><span className={`px-2 py-1 rounded-full text-xs font-medium ${user.platform === 'twitter' ? 'bg-blue-500 bg-opacity-20 text-blue-400' : 'bg-pink-500 bg-opacity-20 text-pink-400'}`}>{user.platform}</span></td>
+                        <td className="px-4 py-3 text-sm text-gray-400">{new Date(user.blocked_at).toLocaleDateString()}</td>
+                        <td className="px-4 py-3 text-sm"><span className={`px-3 py-1 rounded-full text-xs font-semibold ${RISK_COLORS[user.risk_level] || RISK_COLORS.none}`}>{user.risk_level}</span></td>
+                        <td className="px-4 py-3 text-sm"><span className={`px-2 py-1 rounded-full text-xs font-medium ${user.reversed ? 'bg-gray-500 bg-opacity-20 text-gray-400' : 'bg-red-500 bg-opacity-20 text-red-400'}`}>{user.reversed ? 'Reversed' : 'Active'}</span></td>
+                        <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                          {!user.reversed && user.platform === 'twitter' && (
+                            unblockConfirmId === user.id ? (
                               <div className="flex items-center justify-end gap-2">
                                 <span className="text-xs text-gray-400">Unblock?</span>
-                                <button
-                                  onClick={() => handleUnblock(user.id)}
-                                  disabled={unblocking}
-                                  className="px-2 py-1 bg-teal-600 text-white text-xs rounded hover:bg-teal-500 transition-colors disabled:opacity-50"
-                                >
-                                  {unblocking ? '...' : 'Yes'}
-                                </button>
-                                <button
-                                  onClick={() => setUnblockConfirmId(null)}
-                                  className="px-2 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-600 transition-colors"
-                                >
-                                  No
-                                </button>
+                                <button onClick={() => handleUnblock(user.id)} disabled={unblocking} className="px-2 py-1 bg-teal-600 text-white text-xs rounded hover:bg-teal-500 disabled:opacity-50">{unblocking ? '...' : 'Yes'}</button>
+                                <button onClick={() => setUnblockConfirmId(null)} className="px-2 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-600">No</button>
                               </div>
                             ) : (
-                              <button
-                                onClick={() => setUnblockConfirmId(user.id)}
-                                className="px-3 py-1 bg-gray-700 text-white text-xs font-medium rounded hover:bg-gray-600 transition-colors"
-                              >
-                                Unblock
-                              </button>
-                            )}
-                          </>
-                        )}
-                        {!user.reversed && user.platform === 'instagram' && (
-                          <span className="text-xs text-gray-500">Unblock in app</span>
-                        )}
-                        {user.reversed && user.reversed_at && (
-                          <span className="text-xs text-gray-500">
-                            {new Date(user.reversed_at).toLocaleDateString()}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-
-                    {/* Expanded detail row */}
-                    {expandedId === user.id && (
-                      <tr key={`${user.id}-detail`} className="bg-gray-800/30">
-                        <td colSpan={6} className="px-4 py-4">
-                          <div className="space-y-3">
-                            <div>
-                              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Reason</label>
-                              <p className="text-sm text-gray-300 mt-1">{user.reason}</p>
-                            </div>
-                            {user.triggering_content && (
-                              <div>
-                                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Triggering Content</label>
-                                <p className="text-sm text-gray-300 mt-1 bg-gray-800 rounded p-3 border border-gray-700">
-                                  {user.triggering_content}
-                                </p>
-                              </div>
-                            )}
-                            {user.reversed && user.reversed_by && (
-                              <div>
-                                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Reversed By</label>
-                                <p className="text-sm text-gray-300 mt-1">
-                                  {user.reversed_by} on {user.reversed_at ? new Date(user.reversed_at).toLocaleDateString() : 'N/A'}
-                                </p>
-                              </div>
-                            )}
-                          </div>
+                              <button onClick={() => setUnblockConfirmId(user.id)} className="px-3 py-1 bg-gray-700 text-white text-xs font-medium rounded hover:bg-gray-600">Unblock</button>
+                            )
+                          )}
+                          {!user.reversed && user.platform === 'instagram' && <span className="text-xs text-gray-500">Unblock in app</span>}
+                          {user.reversed && user.reversed_at && <span className="text-xs text-gray-500">{new Date(user.reversed_at).toLocaleDateString()}</span>}
                         </td>
                       </tr>
-                    )}
-                  </>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      {expandedId === user.id && (
+                        <tr key={`${user.id}-detail`} className="bg-gray-800/30">
+                          <td colSpan={6} className="px-4 py-4">
+                            <div className="space-y-3">
+                              <div><label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Reason</label><p className="text-sm text-gray-300 mt-1">{user.reason}</p></div>
+                              {user.triggering_content && (<div><label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Triggering Content</label><p className="text-sm text-gray-300 mt-1 bg-gray-800 rounded p-3 border border-gray-700">{user.triggering_content}</p></div>)}
+                              {user.reversed && user.reversed_by && (<div><label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Reversed By</label><p className="text-sm text-gray-300 mt-1">{user.reversed_by} on {user.reversed_at ? new Date(user.reversed_at).toLocaleDateString() : 'N/A'}</p></div>)}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card Layout */}
+            <div className="md:hidden space-y-3">
+              {filtered.map((user) => (
+                <div key={user.id} className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setExpandedId(expandedId === user.id ? null : user.id)}
+                    className="w-full text-left p-3"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <span className="text-sm font-medium text-white">{user.author_handle ? `@${user.author_handle}` : 'Unknown'}</span>
+                      <div className="flex gap-1.5 flex-shrink-0">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${RISK_COLORS[user.risk_level] || RISK_COLORS.none}`}>{user.risk_level}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${user.reversed ? 'bg-gray-500 bg-opacity-20 text-gray-400' : 'bg-red-500 bg-opacity-20 text-red-400'}`}>{user.reversed ? 'Reversed' : 'Active'}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                      <span className="capitalize">{user.platform}</span>
+                      <span>-</span>
+                      <span>{new Date(user.blocked_at).toLocaleDateString()}</span>
+                    </div>
+                  </button>
+
+                  {expandedId === user.id && (
+                    <div className="border-t border-gray-800 p-3 bg-gray-800/30 space-y-2">
+                      <div><label className="text-[10px] font-semibold text-gray-400 uppercase">Reason</label><p className="text-xs text-gray-300 mt-0.5">{user.reason}</p></div>
+                      {user.triggering_content && (<div><label className="text-[10px] font-semibold text-gray-400 uppercase">Content</label><p className="text-xs text-gray-300 mt-0.5 bg-gray-800 rounded p-2 border border-gray-700">{user.triggering_content}</p></div>)}
+                      {!user.reversed && user.platform === 'twitter' && (
+                        <div className="pt-1" onClick={(e) => e.stopPropagation()}>
+                          {unblockConfirmId === user.id ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-400">Unblock?</span>
+                              <button onClick={() => handleUnblock(user.id)} disabled={unblocking} className="px-2 py-1 bg-teal-600 text-white text-xs rounded">{unblocking ? '...' : 'Yes'}</button>
+                              <button onClick={() => setUnblockConfirmId(null)} className="px-2 py-1 bg-gray-700 text-white text-xs rounded">No</button>
+                            </div>
+                          ) : (
+                            <button onClick={() => setUnblockConfirmId(user.id)} className="px-3 py-1.5 bg-gray-700 text-white text-xs font-medium rounded hover:bg-gray-600 w-full">Unblock on Twitter</button>
+                          )}
+                        </div>
+                      )}
+                      {!user.reversed && user.platform === 'instagram' && <p className="text-xs text-gray-500 pt-1">Unblock directly in Instagram app</p>}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>

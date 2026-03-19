@@ -113,11 +113,11 @@ export default function MessagesPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-0">
+      <div className="flex items-start sm:items-center justify-between gap-3 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-white">Messages</h1>
-          <p className="text-sm text-gray-400 mt-1">
+          <h1 className="text-lg sm:text-xl font-semibold text-white">Messages</h1>
+          <p className="text-xs sm:text-sm text-gray-400 mt-1">
             DMs from new/unknown senders — scanned for harmful content
           </p>
         </div>
@@ -174,8 +174,8 @@ export default function MessagesPage() {
 
       {/* Detail modal */}
       {selectedItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-6">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-t-2xl sm:rounded-xl w-full sm:max-w-lg max-h-[85vh] sm:max-h-[80vh] overflow-y-auto p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-white">DM Details</h2>
               <button onClick={() => setSelectedItem(null)} className="text-gray-400 hover:text-white">

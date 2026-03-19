@@ -365,16 +365,16 @@ export default function FeedPage() {
       )}
 
       {/* Header */}
-      <div className="border-b border-gray-800 bg-gray-900 p-6">
-        <h1 className="text-3xl font-bold mb-6">Content Moderation</h1>
+      <div className="border-b border-gray-800 bg-gray-900 p-4 sm:p-6">
+        <h1 className="text-xl sm:text-3xl font-bold mb-4 sm:mb-6">Content Moderation</h1>
 
-        {/* Filter Tabs */}
-        <div className="flex gap-4 mb-6 border-b border-gray-800 pb-4">
+        {/* Filter Tabs — horizontally scrollable on mobile */}
+        <div className="flex gap-2 sm:gap-4 mb-4 sm:mb-6 border-b border-gray-800 pb-3 sm:pb-4 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
           {['all', 'high-harm', 'medium-harm', 'questionable', 'reviewed'].map((tab) => (
             <button
               key={tab}
               onClick={() => setFilterTab(tab)}
-              className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-t-lg text-sm sm:text-base font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
                 filterTab === tab
                   ? 'bg-gray-800 text-white border-b-2 border-blue-500'
                   : 'text-gray-400 hover:text-gray-300'
@@ -387,34 +387,34 @@ export default function FeedPage() {
 
         {/* Search Input */}
         <div className="relative">
-          <SearchIcon className="absolute left-3 top-3 w-5 h-5 text-gray-500" />
+          <SearchIcon className="absolute left-3 top-2.5 sm:top-3 w-4 sm:w-5 h-4 sm:h-5 text-gray-500" />
           <input
             type="text"
             placeholder="Search content..."
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-9 sm:pl-10 pr-4 py-2 text-sm sm:text-base text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500"
           />
         </div>
       </div>
 
-      {/* Feed Table */}
-      <div className="p-6">
+      {/* Feed Content */}
+      <div className="p-4 sm:p-6">
         {sortedRiskLevels.length === 0 ? (
           <div className="text-center py-12 text-gray-500">No items to display</div>
         ) : (
           sortedRiskLevels.map((riskLevel) => (
-            <div key={riskLevel} className="mb-8">
+            <div key={riskLevel} className="mb-6 sm:mb-8">
               {/* Risk Level Header */}
-              <div className={`${HEADER_COLORS[riskLevel]} px-4 py-3 rounded-t-lg flex items-center justify-between`}>
-                <h2 className="font-bold text-lg">{getRiskLevelLabel(riskLevel)}</h2>
-                <span className="bg-black bg-opacity-30 px-3 py-1 rounded-full text-sm font-semibold">
+              <div className={`${HEADER_COLORS[riskLevel]} px-4 py-2.5 sm:py-3 rounded-t-lg flex items-center justify-between`}>
+                <h2 className="font-bold text-sm sm:text-lg">{getRiskLevelLabel(riskLevel)}</h2>
+                <span className="bg-black bg-opacity-30 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-semibold">
                   {groupedFeeds[riskLevel].length}
                 </span>
               </div>
 
-              {/* Table */}
-              <div className="bg-gray-900 border border-t-0 border-gray-800 rounded-b-lg overflow-hidden">
+              {/* Desktop Table (hidden on mobile) */}
+              <div className="hidden md:block bg-gray-900 border border-t-0 border-gray-800 rounded-b-lg overflow-hidden">
                 <table className="w-full">
                   <thead className="bg-gray-800 border-b border-gray-700">
                     <tr>
@@ -429,24 +429,12 @@ export default function FeedPage() {
                           className="rounded border-gray-600"
                         />
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">
-                        Author
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">
-                        Content
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">
-                        Platform
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">
-                        Risk Level
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">
-                        Action
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">
-                        Date
-                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Author</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Content</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Platform</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Risk Level</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Action</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Date</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -457,57 +445,64 @@ export default function FeedPage() {
                         className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors cursor-pointer"
                       >
                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(feed.id)}
-                            onChange={() => handleSelectRow(feed.id)}
-                            className="rounded border-gray-600"
-                          />
+                          <input type="checkbox" checked={selectedIds.has(feed.id)} onChange={() => handleSelectRow(feed.id)} className="rounded border-gray-600" />
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-300">
-                          {feed.author_handle || 'Unknown'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-400 max-w-md truncate">
-                          {feed.content_text}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-400">
-                          {feed.platform || 'Unknown'}
-                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-300">{feed.author_handle || 'Unknown'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-400 max-w-md truncate">{feed.content_text}</td>
+                        <td className="px-4 py-3 text-sm text-gray-400">{feed.platform || 'Unknown'}</td>
                         <td className="px-4 py-3 text-sm">
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${RISK_COLORS[feed.risk_level]}`}>
-                            {feed.risk_level}
-                          </span>
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${RISK_COLORS[feed.risk_level]}`}>{feed.risk_level}</span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-400">
-                          {feed.final_action || 'No action'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-500">
-                          {new Date(feed.created_at).toLocaleDateString()}
-                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-400">{feed.final_action || 'No action'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500">{new Date(feed.created_at).toLocaleDateString()}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile Card Layout (shown on mobile only) */}
+              <div className="md:hidden bg-gray-900 border border-t-0 border-gray-800 rounded-b-lg divide-y divide-gray-800">
+                {groupedFeeds[riskLevel].map((feed) => (
+                  <button
+                    key={feed.id}
+                    onClick={() => handleRowClick(feed)}
+                    className="w-full text-left p-3 hover:bg-gray-800/50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <span className="text-sm font-medium text-gray-200 truncate">{feed.author_handle || 'Unknown'}</span>
+                      <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold ${RISK_COLORS[feed.risk_level]}`}>{feed.risk_level}</span>
+                    </div>
+                    <p className="text-xs text-gray-400 line-clamp-2 mb-1.5">{feed.content_text}</p>
+                    <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                      <span className="capitalize">{feed.platform}</span>
+                      <span>-</span>
+                      <span>{feed.final_action || 'No action'}</span>
+                      <span>-</span>
+                      <span>{new Date(feed.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
           ))
         )}
       </div>
 
-      {/* Bulk Actions Bar */}
+      {/* Bulk Actions Bar — pushed above bottom nav on mobile */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-6 right-6 bg-gray-800 border border-gray-700 rounded-lg p-4 flex items-center justify-between">
-          <span className="text-gray-300 font-medium">{selectedIds.size} selected</span>
-          <div className="flex gap-3">
-            <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors">
-              Hide Selected
+        <div className="fixed bottom-20 md:bottom-6 left-3 right-3 sm:left-6 sm:right-6 bg-gray-800 border border-gray-700 rounded-lg p-3 sm:p-4 flex items-center justify-between z-40">
+          <span className="text-gray-300 text-sm sm:text-base font-medium">{selectedIds.size} selected</span>
+          <div className="flex gap-2 sm:gap-3">
+            <button className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs sm:text-sm font-medium transition-colors">
+              Hide
             </button>
-            <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors">
-              Block Authors
+            <button className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs sm:text-sm font-medium transition-colors">
+              Block
             </button>
             <button
               onClick={() => setSelectedIds(new Set())}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+              className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs sm:text-sm font-medium transition-colors"
             >
               Dismiss
             </button>
@@ -517,10 +512,10 @@ export default function FeedPage() {
 
       {/* Detail Modal */}
       {detailModalOpen && selectedFeed && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-900 border border-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4 z-50">
+          <div className="bg-gray-900 border border-gray-800 rounded-t-2xl sm:rounded-lg w-full sm:max-w-2xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
+            <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold">{selectedFeed.author_handle || 'Unknown'}</h2>
                 <p className="text-sm text-gray-400">{selectedFeed.platform}</p>
@@ -534,7 +529,7 @@ export default function FeedPage() {
             </div>
 
             {/* Modal Content */}
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* Content Section */}
               <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                 <div className="flex items-center justify-between mb-3">

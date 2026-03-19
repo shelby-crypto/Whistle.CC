@@ -318,30 +318,30 @@ export default function SettingsPage() {
   const calendarDays = getCurrentMonth();
 
   return (
-    <div className="min-h-screen bg-gray-950 p-8">
+    <div className="min-h-screen bg-gray-950 p-4 sm:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-12">
-          <h1 className="text-4xl font-bold text-white mb-2">Settings</h1>
-          <p className="text-gray-400">Configure your NetRef Safety moderation preferences</p>
+        <div className="mb-8 sm:mb-12">
+          <h1 className="text-2xl sm:text-4xl font-bold text-white mb-2">Settings</h1>
+          <p className="text-sm sm:text-base text-gray-400">Configure your NetRef Safety moderation preferences</p>
         </div>
 
         {/* ── Allowlist Section ─────────────────────────────────────────────── */}
-        <div className="mb-12">
-          <div className="flex items-center justify-between mb-4">
+        <div className="mb-8 sm:mb-12">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div>
-              <h2 className="text-2xl font-semibold text-white">Allowlist</h2>
-              <p className="text-sm text-gray-400 mt-1">
+              <h2 className="text-xl sm:text-2xl font-semibold text-white">Allowlist</h2>
+              <p className="text-xs sm:text-sm text-gray-400 mt-1">
                 Content from allowlisted accounts skips AI moderation entirely
               </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gray-800 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
               >
                 <UploadIcon className="w-4 h-4" />
-                Import CSV
+                <span className="hidden sm:inline">Import</span> CSV
               </button>
               <input
                 ref={fileInputRef}
@@ -427,7 +427,9 @@ export default function SettingsPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              {/* Desktop Table */}
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-800 border-b border-gray-700">
                     <tr>
@@ -441,48 +443,21 @@ export default function SettingsPage() {
                   <tbody>
                     {filteredAllowlist.map((entry) => (
                       <tr key={entry.id} className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors">
-                        <td className="px-4 py-3 text-sm text-white font-medium">
-                          @{entry.platform_username}
-                        </td>
+                        <td className="px-4 py-3 text-sm text-white font-medium">@{entry.platform_username}</td>
                         <td className="px-4 py-3 text-sm">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            entry.platform === 'twitter'
-                              ? 'bg-blue-500 bg-opacity-20 text-blue-400'
-                              : 'bg-pink-500 bg-opacity-20 text-pink-400'
-                          }`}>
-                            {entry.platform}
-                          </span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${entry.platform === 'twitter' ? 'bg-blue-500 bg-opacity-20 text-blue-400' : 'bg-pink-500 bg-opacity-20 text-pink-400'}`}>{entry.platform}</span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-400">
-                          {entry.note || '-'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-500">
-                          {new Date(entry.created_at).toLocaleDateString()}
-                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-400">{entry.note || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500">{new Date(entry.created_at).toLocaleDateString()}</td>
                         <td className="px-4 py-3 text-right">
                           {deleteConfirmId === entry.id ? (
                             <div className="flex items-center justify-end gap-2">
                               <span className="text-xs text-gray-400">Remove?</span>
-                              <button
-                                onClick={() => handleRemoveFromAllowlist(entry.id)}
-                                className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-500 transition-colors"
-                              >
-                                Yes
-                              </button>
-                              <button
-                                onClick={() => setDeleteConfirmId(null)}
-                                className="px-2 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-600 transition-colors"
-                              >
-                                No
-                              </button>
+                              <button onClick={() => handleRemoveFromAllowlist(entry.id)} className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-500 transition-colors">Yes</button>
+                              <button onClick={() => setDeleteConfirmId(null)} className="px-2 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-600 transition-colors">No</button>
                             </div>
                           ) : (
-                            <button
-                              onClick={() => setDeleteConfirmId(entry.id)}
-                              className="text-gray-500 hover:text-red-400 transition-colors"
-                            >
-                              <TrashIcon className="w-4 h-4" />
-                            </button>
+                            <button onClick={() => setDeleteConfirmId(entry.id)} className="text-gray-500 hover:text-red-400 transition-colors"><TrashIcon className="w-4 h-4" /></button>
                           )}
                         </td>
                       </tr>
@@ -490,13 +465,37 @@ export default function SettingsPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile Card Layout */}
+              <div className="sm:hidden divide-y divide-gray-800">
+                {filteredAllowlist.map((entry) => (
+                  <div key={entry.id} className="py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-medium text-white truncate">@{entry.platform_username}</span>
+                        <span className={`flex-shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${entry.platform === 'twitter' ? 'bg-blue-500 bg-opacity-20 text-blue-400' : 'bg-pink-500 bg-opacity-20 text-pink-400'}`}>{entry.platform}</span>
+                      </div>
+                      <p className="text-xs text-gray-500">{entry.note || 'No note'} - {new Date(entry.created_at).toLocaleDateString()}</p>
+                    </div>
+                    {deleteConfirmId === entry.id ? (
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button onClick={() => handleRemoveFromAllowlist(entry.id)} className="px-2 py-1 bg-red-600 text-white text-xs rounded">Yes</button>
+                        <button onClick={() => setDeleteConfirmId(null)} className="px-2 py-1 bg-gray-700 text-white text-xs rounded">No</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setDeleteConfirmId(entry.id)} className="flex-shrink-0 text-gray-500 hover:text-red-400 transition-colors p-1"><TrashIcon className="w-4 h-4" /></button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              </>
             )}
           </div>
         </div>
 
         {/* 1. Social Listening Section */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-semibold text-white mb-4">Social Listening</h2>
+        <div className="mb-8 sm:mb-12">
+          <h2 className="text-xl sm:text-2xl font-semibold text-white mb-4">Social Listening</h2>
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
             <div className="mb-6">
               <label className="block text-sm font-medium text-white mb-2">Search Query</label>
@@ -531,8 +530,8 @@ export default function SettingsPage() {
         </div>
 
         {/* 2. Auto-Moderation Section */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-semibold text-white mb-4">Auto-Moderation</h2>
+        <div className="mb-8 sm:mb-12">
+          <h2 className="text-xl sm:text-2xl font-semibold text-white mb-4">Auto-Moderation</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* High Harm Card */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 border-l-4 border-l-red-500">
@@ -606,8 +605,8 @@ export default function SettingsPage() {
         </div>
 
         {/* 3. Profile Toxicity Detection */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-semibold text-white mb-4">Profile Toxicity Detection</h2>
+        <div className="mb-8 sm:mb-12">
+          <h2 className="text-xl sm:text-2xl font-semibold text-white mb-4">Profile Toxicity Detection</h2>
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
             <p className="text-gray-400 text-sm mb-6">
               Automatically screen user profiles for patterns of toxic behavior
@@ -634,8 +633,8 @@ export default function SettingsPage() {
         </div>
 
         {/* 4. Betting Risk Analysis */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-semibold text-white mb-4">Betting Risk Analysis</h2>
+        <div className="mb-8 sm:mb-12">
+          <h2 className="text-xl sm:text-2xl font-semibold text-white mb-4">Betting Risk Analysis</h2>
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
             <div className="flex justify-center">
               <div className="w-full max-w-sm">

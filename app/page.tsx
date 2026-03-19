@@ -168,15 +168,15 @@ export default function Dashboard() {
 
   // Stat card component
   const StatCardComponent = ({ label, value, icon, bgColor }: StatCard) => (
-    <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6">
+    <div className="bg-gray-900 rounded-2xl border border-gray-800 p-4 sm:p-6">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">
+          <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider mb-1 sm:mb-2">
             {label}
           </p>
-          <p className="text-4xl font-bold text-white">{value}</p>
+          <p className="text-2xl sm:text-4xl font-bold text-white">{value}</p>
         </div>
-        <div className={`${bgColor} p-3 rounded-lg`}>{icon}</div>
+        <div className={`${bgColor} p-2 sm:p-3 rounded-lg hidden sm:block`}>{icon}</div>
       </div>
     </div>
   );
@@ -423,9 +423,9 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-950">
       {/* Header */}
       <div className="border-b border-gray-800 bg-gray-950 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold text-white">Content Moderation</h1>
+            <h1 className="text-xl sm:text-3xl font-bold text-white">Content Moderation</h1>
             <button
               onClick={fetchData}
               disabled={loading}
@@ -438,9 +438,9 @@ export default function Dashboard() {
       </div>
 
       {/* Main content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
         {/* Stats Cards Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 mb-6 sm:mb-8">
           <StatCardComponent
             label="Total Posts"
             value={stats.totalPosts}
@@ -526,9 +526,9 @@ export default function Dashboard() {
         </div>
 
         {/* Toxicity Timeline */}
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6 mb-8">
-          <h2 className="text-xl font-semibold text-white mb-6">Toxicity Timeline</h2>
-          <div className="flex justify-end gap-4 mb-6 text-sm">
+        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-4 sm:p-6 mb-6 sm:mb-8">
+          <h2 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6">Toxicity Timeline</h2>
+          <div className="flex flex-wrap justify-end gap-3 sm:gap-4 mb-4 sm:mb-6 text-xs sm:text-sm">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-red-500 rounded-full" />
               <span className="text-gray-400">High Risk</span>
@@ -554,8 +554,8 @@ export default function Dashboard() {
         </div>
 
         {/* Platform Breakdown */}
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6">
-          <h2 className="text-xl font-semibold text-white mb-6">Platform Breakdown</h2>
+        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6">Platform Breakdown</h2>
           <PlatformBreakdown />
         </div>
       </div>
