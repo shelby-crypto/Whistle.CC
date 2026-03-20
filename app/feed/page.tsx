@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 // Inline SVG icon components (no external dependency)
@@ -155,7 +155,7 @@ function ShieldCheckIcon({ className }: { className?: string }) {
   );
 }
 
-export default function FeedPage() {
+function FeedPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [feeds, setFeeds] = useState<PipelineRun[]>([]);
@@ -777,5 +777,17 @@ export default function FeedPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function FeedPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-gray-950">
+        <div className="text-gray-400">Loading...</div>
+      </div>
+    }>
+      <FeedPageContent />
+    </Suspense>
   );
 }
