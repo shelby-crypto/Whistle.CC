@@ -322,8 +322,8 @@ export default function SettingsPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8 sm:mb-12">
-          <h1 className="text-2xl sm:text-4xl font-bold text-white mb-2">Settings</h1>
-          <p className="text-sm sm:text-base text-gray-400">Configure your NetRef Safety moderation preferences</p>
+          <h1 className="text-2xl sm:text-4xl font-bold text-white mb-2">Protection Settings</h1>
+          <p className="text-sm sm:text-base text-gray-400">Configure how Whistle protects your online presence</p>
         </div>
 
         {/* ── Allowlist Section ─────────────────────────────────────────────── */}
@@ -531,12 +531,12 @@ export default function SettingsPage() {
 
         {/* 2. Auto-Moderation Section */}
         <div className="mb-8 sm:mb-12">
-          <h2 className="text-xl sm:text-2xl font-semibold text-white mb-4">Auto-Moderation</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold text-white mb-4">Auto-Protection Rules</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* High Harm Card */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 border-l-4 border-l-red-500">
-              <h3 className="text-lg font-semibold text-white mb-1">High Harm</h3>
-              <p className="text-sm text-gray-400 mb-5">Severe threats, doxxing, explicit harassment</p>
+              <h3 className="text-lg font-semibold text-white mb-1">Serious Threats</h3>
+              <p className="text-sm text-gray-400 mb-5">Threats, doxxing, explicit harassment</p>
               <div className="space-y-3">
                 {(['block', 'delete', 'mute'] as const).map((action) => (
                   <div key={action} className="flex items-center justify-between">
@@ -558,7 +558,7 @@ export default function SettingsPage() {
 
             {/* Medium Harm Card */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 border-l-4 border-l-yellow-500">
-              <h3 className="text-lg font-semibold text-white mb-1">Medium Harm</h3>
+              <h3 className="text-lg font-semibold text-white mb-1">Concerning Activity</h3>
               <p className="text-sm text-gray-400 mb-5">Targeted insults, discriminatory language</p>
               <div className="space-y-3">
                 {(['block', 'delete', 'mute'] as const).map((action) => (
@@ -581,7 +581,7 @@ export default function SettingsPage() {
 
             {/* Questionable Card */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 border-l-4 border-l-blue-500">
-              <h3 className="text-lg font-semibold text-white mb-1">Questionable</h3>
+              <h3 className="text-lg font-semibold text-white mb-1">Worth Watching</h3>
               <p className="text-sm text-gray-400 mb-5">Borderline content, heated criticism</p>
               <div className="space-y-3">
                 {(['block', 'delete', 'mute'] as const).map((action) => (
@@ -696,8 +696,8 @@ export default function SettingsPage() {
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
             {monitoringWindows.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-gray-400 mb-2">No monitoring windows created yet</p>
-                <p className="text-sm text-gray-500">Create one to start monitoring specific periods</p>
+                <p className="text-gray-400 mb-2">No monitoring windows set up yet</p>
+                <p className="text-sm text-gray-500">Create one for game days, events, or high-profile moments when you expect more activity</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -850,7 +850,7 @@ export default function SettingsPage() {
                   type="text"
                   value={newWindow.name}
                   onChange={(e) => setNewWindow((prev) => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g., Election Week Monitoring"
+                  placeholder="e.g., Game Night, Playoff Week, Media Day"
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
                 />
               </div>

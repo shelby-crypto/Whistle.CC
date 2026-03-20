@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 // Inline SVG icon components (no external dependency)
 function SearchIcon({ className }: { className?: string }) {
@@ -155,10 +156,12 @@ function ShieldCheckIcon({ className }: { className?: string }) {
 }
 
 export default function FeedPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [feeds, setFeeds] = useState<PipelineRun[]>([]);
   const [filteredFeeds, setFilteredFeeds] = useState<PipelineRun[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterTab, setFilterTab] = useState<string>('all');
+  const [filterTab, setFilterTab] = useState<string>(searchParams.get('filter') || 'all');
   const [searchText, setSearchText] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -223,7 +226,7 @@ export default function FeedPage() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'pipeline_runs' },
-        (payload) => {
+        () => {
           fetchFeeds();
         }
       )
@@ -239,7 +242,10 @@ export default function FeedPage() {
     let filtered = feeds;
 
     // Filter by risk level
-    if (filterTab !== 'all') {
+    if (filterTab === 'needs-attention') {
+      // Special filter: items where final_action is 'log' (unreviewed)
+      filtered = filtered.filter((f) => f.final_action === 'log');
+    } else if (filterTab !== 'all') {
       const riskMap: Record<string, string[]> = {
         'high-harm': ['severe', 'high'],
         'medium-harm': ['medium'],
@@ -310,19 +316,19 @@ export default function FeedPage() {
   const getRiskLevelLabel = (riskLevel: string): string => {
     switch (riskLevel) {
       case 'failed':
-        return 'Pipeline Failed — Manual Review Required';
+        return 'Processing Failed — Manual Review Needed';
       case 'error':
-        return 'Pipeline Error — Needs Reprocessing';
+        return 'Processing Error — Needs Reprocessing';
       case 'severe':
-        return 'High Harm';
+        return 'Serious Threats';
       case 'high':
-        return 'High Harm';
+        return 'Serious Threats';
       case 'medium':
-        return 'Medium Harm';
+        return 'Concerning Activity';
       case 'low':
-        return 'Questionable';
+        return 'Worth Watching';
       case 'none':
-        return 'Reviewed';
+        return 'Handled';
       default:
         return 'Unknown';
     }
@@ -338,7 +344,7 @@ export default function FeedPage() {
 
     if (filterTab === 'all') {
       return (
-        feeds.filter((f) => f.risk_level === riskLevel || f.risk_level === riskLevel).length
+        feeds.filter((f) => f.risk_level === riskLevel).length
       );
     }
 
@@ -366,21 +372,27 @@ export default function FeedPage() {
 
       {/* Header */}
       <div className="border-b border-gray-800 bg-gray-900 p-4 sm:p-6">
-        <h1 className="text-xl sm:text-3xl font-bold mb-4 sm:mb-6">Content Moderation</h1>
+        <h1 className="text-xl sm:text-3xl font-bold mb-4 sm:mb-6">Activity</h1>
 
         {/* Filter Tabs — horizontally scrollable on mobile */}
         <div className="flex gap-2 sm:gap-4 mb-4 sm:mb-6 border-b border-gray-800 pb-3 sm:pb-4 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
-          {['all', 'high-harm', 'medium-harm', 'questionable', 'reviewed'].map((tab) => (
+          {[
+            { key: 'all', label: 'All' },
+            { key: 'high-harm', label: 'Serious Threats' },
+            { key: 'medium-harm', label: 'Concerning' },
+            { key: 'questionable', label: 'Worth Watching' },
+            { key: 'reviewed', label: 'Handled' },
+          ].map((tab) => (
             <button
-              key={tab}
-              onClick={() => setFilterTab(tab)}
+              key={tab.key}
+              onClick={() => setFilterTab(tab.key)}
               className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-t-lg text-sm sm:text-base font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
-                filterTab === tab
+                filterTab === tab.key
                   ? 'bg-gray-800 text-white border-b-2 border-blue-500'
                   : 'text-gray-400 hover:text-gray-300'
               }`}
             >
-              {tab.replace('-', ' ').charAt(0).toUpperCase() + tab.replace('-', ' ').slice(1)}
+              {tab.label}
             </button>
           ))}
         </div>
@@ -401,7 +413,10 @@ export default function FeedPage() {
       {/* Feed Content */}
       <div className="p-4 sm:p-6">
         {sortedRiskLevels.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">No items to display</div>
+          <div className="text-center py-12">
+            <p className="text-gray-400 text-lg">All clear — we&apos;re keeping watch</p>
+            <p className="text-sm text-gray-500 mt-2">No threats detected. Your protection is active and monitoring your accounts.</p>
+          </div>
         ) : (
           sortedRiskLevels.map((riskLevel) => (
             <div key={riskLevel} className="mb-6 sm:mb-8">
@@ -448,12 +463,12 @@ export default function FeedPage() {
                           <input type="checkbox" checked={selectedIds.has(feed.id)} onChange={() => handleSelectRow(feed.id)} className="rounded border-gray-600" />
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-300">{feed.author_handle || 'Unknown'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-400 max-w-md truncate">{feed.content_text}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500 max-w-md truncate italic">Content hidden — tap to view details</td>
                         <td className="px-4 py-3 text-sm text-gray-400">{feed.platform || 'Unknown'}</td>
                         <td className="px-4 py-3 text-sm">
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${RISK_COLORS[feed.risk_level]}`}>{feed.risk_level}</span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-400">{feed.final_action || 'No action'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-400">{feed.final_action === 'block_sender' ? 'Blocked' : feed.final_action === 'delete' ? 'Removed' : feed.final_action === 'hide' ? 'Hidden' : feed.final_action === 'mute_sender' ? 'Muted' : feed.final_action === 'log' ? 'Logged' : feed.final_action || 'No action'}</td>
                         <td className="px-4 py-3 text-sm text-gray-500">{new Date(feed.created_at).toLocaleDateString()}</td>
                       </tr>
                     ))}
@@ -473,11 +488,11 @@ export default function FeedPage() {
                       <span className="text-sm font-medium text-gray-200 truncate">{feed.author_handle || 'Unknown'}</span>
                       <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold ${RISK_COLORS[feed.risk_level]}`}>{feed.risk_level}</span>
                     </div>
-                    <p className="text-xs text-gray-400 line-clamp-2 mb-1.5">{feed.content_text}</p>
+                    <p className="text-xs text-gray-500 italic mb-1.5">Content hidden — tap to view details</p>
                     <div className="flex items-center gap-2 text-[10px] text-gray-500">
                       <span className="capitalize">{feed.platform}</span>
                       <span>-</span>
-                      <span>{feed.final_action || 'No action'}</span>
+                      <span>{feed.final_action === 'block_sender' ? 'Blocked' : feed.final_action === 'delete' ? 'Removed' : feed.final_action === 'hide' ? 'Hidden' : feed.final_action === 'mute_sender' ? 'Muted' : feed.final_action === 'log' ? 'Logged' : feed.final_action || 'No action'}</span>
                       <span>-</span>
                       <span>{new Date(feed.created_at).toLocaleDateString()}</span>
                     </div>
@@ -530,10 +545,129 @@ export default function FeedPage() {
 
             {/* Modal Content */}
             <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-              {/* Content Section */}
+              {/* Threat Level + Action Badges */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className={`px-4 py-2 rounded-lg text-sm font-semibold ${RISK_COLORS[selectedFeed.risk_level]}`}>
+                  {selectedFeed.risk_level === 'severe' || selectedFeed.risk_level === 'high' ? 'Serious Threat' : selectedFeed.risk_level === 'medium' ? 'Concerning' : selectedFeed.risk_level === 'low' ? 'Worth Watching' : selectedFeed.risk_level === 'none' ? 'Handled' : selectedFeed.risk_level}
+                </span>
+                <span className="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-800 text-gray-300 border border-gray-700">
+                  {selectedFeed.final_action === 'block_sender' ? 'User Blocked' : selectedFeed.final_action === 'delete' ? 'Post Removed' : selectedFeed.final_action === 'hide' ? 'Post Hidden' : selectedFeed.final_action === 'mute_sender' ? 'User Muted' : selectedFeed.final_action === 'log' ? 'Logged for Review' : selectedFeed.final_action || 'No action'}
+                </span>
+              </div>
+
+              {/* Why This Was Flagged — Human-readable */}
+              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <h3 className="text-sm font-semibold text-gray-100 mb-3">Why this was flagged</h3>
+                {(() => {
+                  const hasError = selectedFeed.action_agent_output && 'error' in selectedFeed.action_agent_output;
+                  const isErrorRisk = selectedFeed.risk_level === 'error' || selectedFeed.risk_level === 'failed';
+
+                  if (hasError || isErrorRisk) {
+                    return (
+                      <div className="bg-red-900 bg-opacity-30 border border-red-700 rounded-lg p-3">
+                        <p className="text-sm text-red-300 font-medium mb-1">Processing Error</p>
+                        <p className="text-xs text-red-200">
+                          Whistle couldn&apos;t fully analyze this content. It&apos;s been flagged for your manual review as a precaution.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  // Build human-readable description from harm scores
+                  const harmScores = selectedFeed.classifier_output?.harm_scores;
+                  const flaggedCategories: string[] = [];
+                  if (harmScores) {
+                    HARM_CATEGORIES.forEach((cat) => {
+                      const entry = harmScores[cat.key];
+                      const level = scoreEntryToLevel(entry);
+                      if (level === 'severe' || level === 'high') {
+                        flaggedCategories.push(cat.label.toLowerCase());
+                      }
+                    });
+                  }
+
+                  const classifierReasoning = selectedFeed.classifier_output?.reasoning;
+                  const actionBasis = selectedFeed.action_agent_output?.action_basis;
+
+                  return (
+                    <div className="space-y-3">
+                      {/* Reasoning in plain language */}
+                      {typeof classifierReasoning === 'string' && classifierReasoning.length > 0 && (
+                        <p className="text-sm text-gray-300 leading-relaxed">{classifierReasoning}</p>
+                      )}
+                      {flaggedCategories.length > 0 && (
+                        <p className="text-sm text-gray-400">
+                          Flagged for: <span className="text-gray-200 font-medium">{flaggedCategories.join(', ')}</span>
+                        </p>
+                      )}
+                      {!(typeof classifierReasoning === 'string' && classifierReasoning.length > 0) && flaggedCategories.length === 0 && (
+                        <p className="text-sm text-gray-400 italic">No additional details available.</p>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* What Whistle Did */}
+              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <h3 className="text-sm font-semibold text-gray-100 mb-3">What Whistle did</h3>
+                {(() => {
+                  const actionBasis = selectedFeed.action_agent_output?.action_basis;
+                  const action = selectedFeed.final_action;
+
+                  const actionDescriptions: Record<string, string> = {
+                    'block_sender': `Blocked @${selectedFeed.author_handle || 'this user'} immediately to prevent further contact.`,
+                    'delete': 'Removed the post so it\'s no longer visible to you or others.',
+                    'hide': 'Hidden the post from your view. The original is still on the platform but you won\'t see it.',
+                    'mute_sender': `Muted @${selectedFeed.author_handle || 'this user'} — their future posts won\'t appear in your mentions.`,
+                    'log': 'Logged this for your review. No automatic action was taken — this one needs your judgment.',
+                  };
+
+                  const desc = actionDescriptions[action] || 'No automatic action was taken.';
+
+                  return (
+                    <div className="space-y-3">
+                      <p className="text-sm text-gray-300 leading-relaxed">{desc}</p>
+                      {typeof actionBasis === 'string' && actionBasis.length > 0 && (
+                        <p className="text-xs text-gray-500 italic">{actionBasis}</p>
+                      )}
+                      {selectedFeed.safety_override_applied && (
+                        <div className="bg-orange-900 bg-opacity-30 border border-orange-700 rounded-lg p-3 mt-2">
+                          <p className="text-xs text-orange-300 font-medium">Safety override applied — Whistle downgraded an irreversible action to a safer alternative as a precaution.</p>
+                          {selectedFeed.irreversible_action_justification && (
+                            <p className="text-xs text-orange-200 mt-1">{selectedFeed.irreversible_action_justification}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* What You Can Do */}
+              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <h3 className="text-sm font-semibold text-gray-100 mb-3">What you can do</h3>
+                <div className="space-y-2">
+                  {selectedFeed.risk_level === 'severe' || selectedFeed.risk_level === 'high' ? (
+                    <p className="text-sm text-gray-300 leading-relaxed">
+                      If you recognize this person or believe the threat is real, consider reporting it to local authorities or your team&apos;s security. You can also reverse the block from the <a href="/blocked-users" className="text-teal-400 hover:text-teal-300 underline">Blocked page</a> if you believe it was a mistake.
+                    </p>
+                  ) : selectedFeed.risk_level === 'none' ? (
+                    <p className="text-sm text-gray-300 leading-relaxed">
+                      This content was reviewed and determined to be safe. No action needed.
+                    </p>
+                  ) : (
+                    <p className="text-sm text-gray-300 leading-relaxed">
+                      You can adjust the threat level below if you disagree with the assessment, add this person to your <button onClick={() => { handleAddToAllowlist(selectedFeed.author_handle || '', selectedFeed.platform || 'twitter'); }} className="text-teal-400 hover:text-teal-300 underline">allowlist</button> if they&apos;re a known contact, or leave it as-is.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Content — hidden by default for wellbeing */}
               <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-100">Content</h3>
+                  <h3 className="text-sm font-semibold text-gray-100">Original Content</h3>
                   <button
                     onClick={() => setContentHidden(!contentHidden)}
                     className="flex items-center gap-2 px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
@@ -552,17 +686,45 @@ export default function FeedPage() {
                   </button>
                 </div>
                 {contentHidden ? (
-                  <div className="text-gray-500 italic">Content hidden</div>
+                  <div className="text-gray-500 italic text-sm">Content hidden for your wellbeing — tap Reveal to view</div>
                 ) : (
                   <p className="text-gray-300 text-sm leading-relaxed">{selectedFeed.content_text}</p>
                 )}
               </div>
 
-              {/* Harm Dimension Breakdown */}
+              {/* Adjust Threat Level */}
+              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <label className="block text-sm font-semibold text-gray-100 mb-2">
+                  Adjust Threat Level
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={adjustedHarmLevel || selectedFeed.risk_level}
+                    onChange={(e) => setAdjustedHarmLevel(e.target.value)}
+                    className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="none">None</option>
+                    <option value="low">Worth Watching</option>
+                    <option value="medium">Concerning</option>
+                    <option value="high">Serious</option>
+                    <option value="severe">Severe</option>
+                  </select>
+                  <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors">
+                    Save
+                  </button>
+                </div>
+                <a href="/settings" className="inline-block text-xs text-gray-500 hover:text-teal-400 mt-2 transition-colors">
+                  Change how Whistle handles threats like this →
+                </a>
+              </div>
+
+              {/* Technical Details — collapsible */}
               {selectedFeed.classifier_output?.harm_scores && (
-                <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                  <h3 className="font-semibold text-gray-100 mb-4">Harm Dimension Breakdown</h3>
-                  <div className="space-y-3">
+                <details className="bg-gray-800 rounded-lg border border-gray-700">
+                  <summary className="p-4 text-sm font-semibold text-gray-400 cursor-pointer hover:text-gray-300 transition-colors">
+                    Technical Details
+                  </summary>
+                  <div className="px-4 pb-4 space-y-3">
                     {HARM_CATEGORIES.map((category) => {
                       const entry = selectedFeed.classifier_output?.harm_scores[category.key];
                       const level = scoreEntryToLevel(entry);
@@ -587,105 +749,10 @@ export default function FeedPage() {
                       );
                     })}
                   </div>
-                </div>
+                </details>
               )}
 
-              {/* Risk Level Badge */}
-              <div className="flex items-center gap-4">
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Risk Level</p>
-                  <span className={`px-4 py-2 rounded-lg text-sm font-semibold ${RISK_COLORS[selectedFeed.risk_level]}`}>
-                    {selectedFeed.risk_level}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Action Taken</p>
-                  <span className="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-800 text-gray-300 border border-gray-700">
-                    {selectedFeed.final_action || 'No action'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Detection Reason */}
-              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                <label className="block text-sm font-semibold text-gray-100 mb-2">
-                  Detection Reason
-                </label>
-                {(() => {
-                  const classifierReasoning = selectedFeed.classifier_output?.reasoning;
-                  const actionBasis = selectedFeed.action_agent_output?.action_basis;
-                  const hasError = selectedFeed.action_agent_output && 'error' in selectedFeed.action_agent_output;
-                  const isErrorRisk = selectedFeed.risk_level === 'error' || selectedFeed.risk_level === 'failed';
-
-                  // Pipeline failed — show error state
-                  if (hasError || isErrorRisk) {
-                    return (
-                      <div className="bg-red-900 bg-opacity-30 border border-red-700 rounded-lg p-3">
-                        <p className="text-sm text-red-300 font-medium mb-1">Pipeline Error</p>
-                        <p className="text-xs text-red-200">
-                          The moderation pipeline failed to classify this content. The risk level shown is a default, not an actual assessment.
-                          {selectedFeed.action_agent_output && 'error' in selectedFeed.action_agent_output
-                            ? ` Error: ${(selectedFeed.action_agent_output as Record<string, unknown>).error}`
-                            : ' No stages completed.'}
-                        </p>
-                      </div>
-                    );
-                  }
-
-                  // Build combined reasoning
-                  const parts: string[] = [];
-                  if (typeof classifierReasoning === 'string' && classifierReasoning.length > 0) {
-                    parts.push(`Classification: ${classifierReasoning}`);
-                  }
-                  if (typeof actionBasis === 'string' && actionBasis.length > 0) {
-                    parts.push(`Action: ${actionBasis}`);
-                  }
-                  const combined = parts.length > 0 ? parts.join('\n\n') : 'No reasoning available';
-
-                  return (
-                    <textarea
-                      readOnly
-                      value={combined}
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-sm text-gray-300 focus:outline-none focus:border-blue-500 resize-none h-24"
-                    />
-                  );
-                })()}
-              </div>
-
-              {/* Adjust Harm Level */}
-              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                <label className="block text-sm font-semibold text-gray-100 mb-2">
-                  Adjust Harm Level
-                </label>
-                <div className="flex gap-2">
-                  <select
-                    value={adjustedHarmLevel || selectedFeed.risk_level}
-                    onChange={(e) => setAdjustedHarmLevel(e.target.value)}
-                    className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-blue-500"
-                  >
-                    <option value="none">None</option>
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="severe">Severe</option>
-                  </select>
-                  <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors">
-                    Save
-                  </button>
-                </div>
-              </div>
-
-              {/* Safety Override Badge */}
-              {selectedFeed.safety_override_applied && (
-                <div className="bg-orange-900 bg-opacity-30 border border-orange-700 rounded-lg p-4">
-                  <p className="text-sm font-semibold text-orange-300 mb-1">Safety Override Applied</p>
-                  {selectedFeed.irreversible_action_justification && (
-                    <p className="text-xs text-orange-200">{selectedFeed.irreversible_action_justification}</p>
-                  )}
-                </div>
-              )}
-
-              {/* Add to Allowlist + Close Buttons */}
+              {/* Actions */}
               <div className="flex gap-3">
                 {selectedFeed.author_handle && (
                   <button

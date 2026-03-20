@@ -302,9 +302,9 @@ export default function ConnectPage() {
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-white">Connected Accounts</h1>
+        <h1 className="text-xl font-bold text-white">Your Accounts</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Connect your social accounts to start monitoring mentions.
+          Connect your social accounts so Whistle can protect you from online harassment.
         </p>
       </div>
 

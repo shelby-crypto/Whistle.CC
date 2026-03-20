@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { getCurrentUser } from "@/lib/supabase/auth-helpers";
 import { runPipeline } from "@/lib/agents/pipeline";
 import type { ContentContext } from "@/lib/agents/types";
 
@@ -8,8 +8,8 @@ import type { ContentContext } from "@/lib/agents/types";
 // Protected by session auth — no unauthenticated access.
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -13,6 +13,32 @@ import { NextRequest, NextResponse } from "next/server";
  */
 export async function POST(request: NextRequest) {
   try {
+    // ── Origin Validation ───────────────────────────────────────────────
+    const origin = request.headers.get("origin");
+    const referer = request.headers.get("referer");
+
+    // Build expected origin from NEXT_PUBLIC_APP_URL, or construct from Host header
+    let expectedOrigin = process.env.NEXT_PUBLIC_APP_URL;
+    if (!expectedOrigin) {
+      const host = request.headers.get("host");
+      const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
+      expectedOrigin = host ? `${protocol}://${host}` : "http://localhost:3000";
+    }
+
+    // Check that request comes from the same origin
+    if (origin && origin !== expectedOrigin) {
+      console.warn("[set-session] Origin mismatch:", origin, "vs", expectedOrigin);
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (referer) {
+      const refererOrigin = new URL(referer).origin;
+      if (refererOrigin !== expectedOrigin) {
+        console.warn("[set-session] Referer mismatch:", refererOrigin, "vs", expectedOrigin);
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
+
     const session = await request.json();
 
     if (!session?.access_token) {

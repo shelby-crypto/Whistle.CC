@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whistle — Command Center with Daily Briefing</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&display=swap');
+
+  :root {
+    --bg-deep: #060b0a;
+    --bg-surface: #0c1614;
+    --bg-elevated: #111f1c;
+    --bg-card: #132420;
+    --border: #1a3530;
+    --border-subtle: #142a26;
+    --accent: #14b8a6;
+    --accent-dim: #0d9488;
+    --accent-glow: rgba(20, 184, 166, 0.08);
+    --accent-text: #5eead4;
+    --red: #ef4444;
+    --red-dim: rgba(239, 68, 68, 0.1);
+    --orange: #f97316;
+    --orange-dim: rgba(249, 115, 22, 0.1);
+    --yellow: #eab308;
+    --yellow-dim: rgba(234, 179, 8, 0.08);
+    --green: #22c55e;
+    --green-dim: rgba(34, 197, 94, 0.08);
+    --text-primary: #e2ece9;
+    --text-secondary: #8aaba3;
+    --text-muted: #547a72;
+    --text-dim: #3d5c55;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Instrument Sans', -apple-system, sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Subtle ambient glow */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    height: 600px;
+    background: radial-gradient(ellipse, rgba(20, 184, 166, 0.04) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    min-height: 100vh;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Sidebar ─────────────────────────────────────── */
+  .sidebar {
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border-subtle);
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 8px;
+    margin-bottom: 28px;
+  }
+
+  .logo-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: #000;
+    letter-spacing: -0.5px;
+  }
+
+  .logo-text {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 1.15rem;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none;
+  }
+
+  .nav-item:hover {
+    color: var(--text-secondary);
+    background: var(--accent-glow);
+  }
+
+  .nav-item.active {
+    color: var(--accent-text);
+    background: var(--accent-glow);
+  }
+
+  .nav-item .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--red);
+    margin-left: auto;
+    animation: pulse-dot 2s infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .nav-icon {
+    width: 18px;
+    height: 18px;
+    opacity: 0.7;
+  }
+
+  .nav-divider {
+    height: 1px;
+    background: var(--border-subtle);
+    margin: 12px 0;
+  }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .user-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .user-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--accent-text);
+  }
+
+  .user-name {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  /* ── Main Content ────────────────────────────────── */
+  .main {
+    padding: 28px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    max-width: 960px;
+  }
+
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .page-title {
+    font-family: 'Fraunces', serif;
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.5px;
+  }
+
+  .page-subtitle {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+
+  .btn-secondary {
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+
+  /* ── Safety Status Hero ──────────────────────────── */
+  .safety-hero {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    padding: 28px 32px;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .safety-hero::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 200px;
+    height: 100%;
+    background: radial-gradient(ellipse at right, var(--green-dim), transparent 70%);
+    pointer-events: none;
+  }
+
+  .status-ring {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .status-ring.safe {
+    background: var(--green-dim);
+    border: 2px solid rgba(34, 197, 94, 0.3);
+    box-shadow: 0 0 24px rgba(34, 197, 94, 0.1);
+  }
+
+  .status-ring .icon {
+    font-size: 1.8rem;
+  }
+
+  .safety-info {
+    flex: 1;
+    position: relative;
+    z-index: 1;
+  }
+
+  .safety-status {
+    font-family: 'Fraunces', serif;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--green);
+    letter-spacing: -0.3px;
+  }
+
+  .safety-detail {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+
+  .safety-timestamp {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin-top: 8px;
+  }
+
+  /* ── Daily Briefing ──────────────────────────────── */
+  .briefing-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .briefing-header {
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .briefing-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+  }
+
+  .briefing-time {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+  }
+
+  .briefing-body {
+    padding: 24px;
+  }
+
+  .briefing-text {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    line-height: 1.7;
+    font-style: italic;
+    position: relative;
+    padding-left: 16px;
+    border-left: 2px solid var(--accent-dim);
+  }
+
+  .briefing-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .action-item {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .action-item:hover {
+    border-color: var(--accent-dim);
+    background: var(--accent-glow);
+  }
+
+  .action-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .action-text {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+
+  .action-text strong {
+    display: block;
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  /* ── Stats Row ───────────────────────────────────── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  .stat-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 16px 18px;
+    transition: all 0.15s;
+  }
+
+  .stat-card:hover {
+    border-color: var(--border);
+  }
+
+  .stat-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .stat-value {
+    font-family: 'Fraunces', serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: -1px;
+  }
+
+  .stat-value.neutral { color: var(--accent-text); }
+  .stat-value.danger { color: var(--red); }
+  .stat-value.warning { color: var(--yellow); }
+  .stat-value.success { color: var(--green); }
+
+  .stat-delta {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  /* ── Recent Activity ─────────────────────────────── */
+  .activity-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .activity-header {
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .activity-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .activity-link {
+    font-size: 0.75rem;
+    color: var(--accent);
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .activity-list {
+    padding: 8px 0;
+  }
+
+  .activity-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 24px;
+    transition: all 0.1s;
+    cursor: pointer;
+  }
+
+  .activity-row:hover {
+    background: var(--accent-glow);
+  }
+
+  .activity-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .activity-indicator.severe { background: var(--red); box-shadow: 0 0 8px rgba(239, 68, 68, 0.3); }
+  .activity-indicator.high { background: var(--orange); }
+  .activity-indicator.medium { background: var(--yellow); }
+  .activity-indicator.low { background: #3b82f6; }
+  .activity-indicator.none { background: var(--text-dim); }
+
+  .activity-meta {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .activity-author {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .activity-preview {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+  }
+
+  .activity-badge {
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .badge-severe { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+  .badge-high { background: var(--orange-dim); color: var(--orange); border: 1px solid rgba(249,115,22,0.2); }
+  .badge-medium { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(234,179,8,0.15); }
+  .badge-none { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,0.15); }
+
+  .activity-action {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    text-align: right;
+    min-width: 70px;
+  }
+
+  .activity-time {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    min-width: 50px;
+    text-align: right;
+  }
+
+  /* ── Game Day Quick Activate ─────────────────────── */
+  .gameday-banner {
+    background: linear-gradient(135deg, var(--bg-surface), var(--bg-elevated));
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .gameday-banner:hover {
+    border-color: var(--accent-dim);
+    border-style: solid;
+  }
+
+  .gameday-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .gameday-icon {
+    font-size: 1.2rem;
+  }
+
+  .gameday-text {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+
+  .gameday-text strong {
+    color: var(--text-primary);
+  }
+
+  .gameday-btn {
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    cursor: pointer;
+  }
+
+  /* ── Responsive ──────────────────────────────────── */
+  @media (max-width: 768px) {
+    .layout {
+      grid-template-columns: 1fr;
+    }
+    .sidebar { display: none; }
+    .main { padding: 16px; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .safety-hero { flex-direction: column; text-align: center; padding: 24px; }
+    .briefing-actions { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">W</div>
+      <span class="logo-text">Whistle</span>
+    </div>
+
+    <a class="nav-item active" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>
+      Dashboard
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 01-2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 002.25 2.25h13.5M6 7.5h3v3H6v-3z"/></svg>
+      Activity
+      <span class="dot"></span>
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
+      Messages
+    </a>
+
+    <div class="nav-divider"></div>
+
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+      Blocked
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      Protection
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/></svg>
+      Accounts
+    </a>
+
+    <div class="sidebar-footer">
+      <div class="user-pill">
+        <div class="user-avatar">SP</div>
+        <span class="user-name">Shelby Perkins</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main">
+    <!-- Header -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Your Protection Dashboard</h1>
+        <p class="page-subtitle">Last updated 3 minutes ago</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary">Refresh</button>
+      </div>
+    </div>
+
+    <!-- Safety Status Hero -->
+    <div class="safety-hero">
+      <div class="status-ring safe">
+        <span class="icon">✓</span>
+      </div>
+      <div class="safety-info">
+        <div class="safety-status">All Clear</div>
+        <div class="safety-detail">No active threats detected. Your accounts are being monitored and all flagged content has been handled.</div>
+        <div class="safety-timestamp">Protection active since March 1 · Monitoring Twitter and Instagram</div>
+      </div>
+    </div>
+
+    <!-- Daily Briefing (Sideline Coach) -->
+    <div class="briefing-card">
+      <div class="briefing-header">
+        <span class="briefing-label">Today's Briefing</span>
+        <span class="briefing-time">Generated 5 min ago</span>
+      </div>
+      <div class="briefing-body">
+        <div class="briefing-text">
+          Quiet day overall. 142 posts scanned since your game last night. 2 accounts were auto-blocked for making threats — one mentioned knowing your car, the other was trying to organize a pile-on. 5 comments flagged as concerning, but they're mostly frustrated fans venting, no real danger. One new DM from an unknown account needs your team's attention.
+        </div>
+
+        <div class="briefing-actions">
+          <div class="action-item">
+            <span class="action-icon">⚠️</span>
+            <div class="action-text">
+              <strong>1 DM needs review</strong>
+              New sender, flagged as potentially threatening. Tap to see details.
+            </div>
+          </div>
+          <div class="action-item">
+            <span class="action-icon">🛡️</span>
+            <div class="action-text">
+              <strong>2 users auto-blocked</strong>
+              Both made direct threats. You can review and reverse in Blocked.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Posts Scanned</div>
+        <div class="stat-value neutral">142</div>
+        <div class="stat-delta">+23 since yesterday</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Serious Threats</div>
+        <div class="stat-value danger">3</div>
+        <div class="stat-delta">All handled automatically</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Concerning</div>
+        <div class="stat-value warning">5</div>
+        <div class="stat-delta">Mostly venting fans</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Handled</div>
+        <div class="stat-value success">8</div>
+        <div class="stat-delta">Auto-protected</div>
+      </div>
+    </div>
+
+    <!-- Game Day Quick Activate -->
+    <div class="gameday-banner">
+      <div class="gameday-info">
+        <span class="gameday-icon">🏀</span>
+        <div class="gameday-text">
+          <strong>Game Day Mode</strong> — Heighten monitoring before, during, and after events
+        </div>
+      </div>
+      <button class="gameday-btn">Activate</button>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="activity-card">
+      <div class="activity-header">
+        <span class="activity-title">Recent Activity</span>
+        <a class="activity-link">View all →</a>
+      </div>
+      <div class="activity-list">
+        <div class="activity-row">
+          <div class="activity-indicator severe"></div>
+          <div class="activity-meta">
+            <div class="activity-author">@StalkThreat_Anon</div>
+            <div class="activity-preview">Content hidden for your wellbeing — tap to reveal</div>
+          </div>
+          <span class="activity-badge badge-severe">Threat</span>
+          <span class="activity-action">Blocked</span>
+          <span class="activity-time">15m</span>
+        </div>
+        <div class="activity-row">
+          <div class="activity-indicator severe"></div>
+          <div class="activity-meta">
+            <div class="activity-author">@ThreatAccount_X7</div>
+            <div class="activity-preview">Content hidden for your wellbeing — tap to reveal</div>
+          </div>
+          <span class="activity-badge badge-severe">Threat</span>
+          <span class="activity-action">Blocked</span>
+          <span class="activity-time">30m</span>
+        </div>
+        <div class="activity-row">
+          <div class="activity-indicator high"></div>
+          <div class="activity-meta">
+            <div class="activity-author">@CoordHarass_Real</div>
+            <div class="activity-preview">Content hidden for your wellbeing — tap to reveal</div>
+          </div>
+          <span class="activity-badge badge-high">Coordinated</span>
+          <span class="activity-action">Muted</span>
+          <span class="activity-time">45m</span>
+        </div>
+        <div class="activity-row">
+          <div class="activity-indicator medium"></div>
+          <div class="activity-meta">
+            <div class="activity-author">@AngryFan_Riordan</div>
+            <div class="activity-preview">Content hidden for your wellbeing — tap to reveal</div>
+          </div>
+          <span class="activity-badge badge-medium">Concerning</span>
+          <span class="activity-action">Logged</span>
+          <span class="activity-time">3h</span>
+        </div>
+        <div class="activity-row">
+          <div class="activity-indicator none"></div>
+          <div class="activity-meta">
+            <div class="activity-author">@BasketballMom_Tricia</div>
+            <div class="activity-preview">Content hidden — tap to reveal</div>
+          </div>
+          <span class="activity-badge badge-none">Safe</span>
+          <span class="activity-action">—</span>
+          <span class="activity-time">5h</span>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

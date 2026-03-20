@@ -35,10 +35,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-bold tracking-tight text-white leading-tight">
-                NetRef Safety
+                Whistle
               </span>
               <span className="text-[10px] text-gray-500 leading-tight">
-                Content Moderation
+                Your Protection
               </span>
             </div>
           </div>
@@ -60,7 +60,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </svg>
               </div>
               <span className="text-sm font-bold tracking-tight text-white">
-                NetRef Safety
+                Whistle
               </span>
             </div>
           </header>

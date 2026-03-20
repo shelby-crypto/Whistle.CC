@@ -121,7 +121,7 @@ export default function BlockedUsersPage() {
           <div>
             <h1 className="text-xl sm:text-3xl font-bold">Blocked Users</h1>
             <p className="text-sm text-gray-400 mt-1">
-              Users blocked by Whistle on your behalf
+              People Whistle has blocked to protect you
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -179,11 +179,11 @@ export default function BlockedUsersPage() {
         {filtered.length === 0 ? (
           <div className="text-center py-12 sm:py-16">
             <p className="text-gray-400 text-base sm:text-lg mb-2">
-              {blockedUsers.length === 0 ? 'No users have been blocked yet' : 'No matches found'}
+              {blockedUsers.length === 0 ? 'No one has been blocked yet — that\'s a good thing' : 'No matches found'}
             </p>
             <p className="text-xs sm:text-sm text-gray-500">
               {blockedUsers.length === 0
-                ? 'When Whistle blocks someone on your behalf, they will appear here.'
+                ? 'When Whistle blocks someone to protect you, they\'ll appear here so you can review and reverse if needed.'
                 : 'Try adjusting your filters.'}
             </p>
           </div>

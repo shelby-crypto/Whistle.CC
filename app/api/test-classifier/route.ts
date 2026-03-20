@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/supabase/auth-helpers";
 
 export async function GET() {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const hasKey = !!process.env.ANTHROPIC_API_KEY;
   const keyPrefix = process.env.ANTHROPIC_API_KEY?.slice(0, 10) ?? "(not set)";
 
   const diagnostics: Record<string, unknown> = {
     anthropic_api_key_set: hasKey,
-    key_prefix: keyPrefix + "...",
+    key_prefix: "(redacted)",
     auth_secret_set: !!process.env.AUTH_SECRET,
     nextauth_secret_set: !!process.env.NEXTAUTH_SECRET,
     supabase_url_set: !!process.env.NEXT_PUBLIC_SUPABASE_URL,

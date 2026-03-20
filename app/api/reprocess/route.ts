@@ -4,12 +4,17 @@ import { runPipeline } from "@/lib/agents/pipeline";
 import { isPipelineError } from "@/lib/agents/types";
 import type { ActionAgentOutput } from "@/lib/agents/types";
 import { normalizeContent } from "@/lib/platforms/normalizer";
+import { getCurrentUser } from "@/lib/supabase/auth-helpers";
 
 export const maxDuration = 300; // Allow up to 5 min for reprocessing
 
 const BATCH_SIZE = 3; // Process at most 3 items per request to avoid timeouts
 
 export async function POST() {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     // Find content items where the pipeline genuinely failed:
     // - risk_level = "error" (new format — pipeline explicitly errored)

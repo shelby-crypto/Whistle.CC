@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client
@@ -36,9 +37,11 @@ interface StatCard {
   value: number;
   icon: React.ReactNode;
   bgColor: string;
+  href?: string;
 }
 
 export default function Dashboard() {
+  const router = useRouter();
   const [data, setData] = useState<PipelineRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -167,8 +170,11 @@ export default function Dashboard() {
   }, []);
 
   // Stat card component
-  const StatCardComponent = ({ label, value, icon, bgColor }: StatCard) => (
-    <div className="bg-gray-900 rounded-2xl border border-gray-800 p-4 sm:p-6">
+  const StatCardComponent = ({ label, value, icon, bgColor, href }: StatCard) => (
+    <div
+      onClick={() => href && router.push(href)}
+      className={`bg-gray-900 rounded-2xl border border-gray-800 p-4 sm:p-6 transition-colors ${href ? 'cursor-pointer hover:border-gray-700 hover:bg-gray-800/50' : ''}`}
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider mb-1 sm:mb-2">
@@ -178,6 +184,7 @@ export default function Dashboard() {
         </div>
         <div className={`${bgColor} p-2 sm:p-3 rounded-lg hidden sm:block`}>{icon}</div>
       </div>
+      {href && <p className="text-[10px] text-gray-600 mt-2">Tap to view →</p>}
     </div>
   );
 
@@ -425,7 +432,7 @@ export default function Dashboard() {
       <div className="border-b border-gray-800 bg-gray-950 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl sm:text-3xl font-bold text-white">Content Moderation</h1>
+            <h1 className="text-xl sm:text-3xl font-bold text-white">Your Protection Dashboard</h1>
             <button
               onClick={fetchData}
               disabled={loading}
@@ -442,8 +449,9 @@ export default function Dashboard() {
         {/* Stats Cards Row */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 mb-6 sm:mb-8">
           <StatCardComponent
-            label="Total Posts"
+            label="Posts Scanned"
             value={stats.totalPosts}
+            href="/feed"
             icon={
               <svg className="w-6 h-6 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5z" />
@@ -453,8 +461,9 @@ export default function Dashboard() {
           />
 
           <StatCardComponent
-            label="High Harm"
+            label="Serious Threats"
             value={stats.highHarm}
+            href="/feed?filter=high-harm"
             icon={
               <svg className="w-6 h-6 text-red-400" fill="currentColor" viewBox="0 0 20 20">
                 <path
@@ -468,8 +477,9 @@ export default function Dashboard() {
           />
 
           <StatCardComponent
-            label="Medium Harm"
+            label="Concerning"
             value={stats.mediumHarm}
+            href="/feed?filter=medium-harm"
             icon={
               <svg className="w-6 h-6 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v2h8v-2zM2 8a2 2 0 11-4 0 2 2 0 014 0zM18 15a4 4 0 00-8 0v2h8v-2z" />
@@ -479,8 +489,9 @@ export default function Dashboard() {
           />
 
           <StatCardComponent
-            label="Questionable"
+            label="Worth Watching"
             value={stats.questionable}
+            href="/feed?filter=questionable"
             icon={
               <svg className="w-6 h-6 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
                 <path
@@ -494,8 +505,9 @@ export default function Dashboard() {
           />
 
           <StatCardComponent
-            label="Blocked Users"
+            label="Users Blocked"
             value={stats.blockedUsers}
+            href="/blocked-users"
             icon={
               <svg className="w-6 h-6 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
                 <path
@@ -509,8 +521,9 @@ export default function Dashboard() {
           />
 
           <StatCardComponent
-            label="Unreviewed"
+            label="Needs Attention"
             value={stats.unreviewed}
+            href="/feed?filter=needs-attention"
             icon={
               <svg className="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
@@ -527,27 +540,28 @@ export default function Dashboard() {
 
         {/* Toxicity Timeline */}
         <div className="bg-gray-900 rounded-2xl border border-gray-800 p-4 sm:p-6 mb-6 sm:mb-8">
-          <h2 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6">Toxicity Timeline</h2>
+          <h2 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6">Threat Activity (14 Days)</h2>
           <div className="flex flex-wrap justify-end gap-3 sm:gap-4 mb-4 sm:mb-6 text-xs sm:text-sm">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-red-500 rounded-full" />
-              <span className="text-gray-400">High Risk</span>
+              <span className="text-gray-400">Serious Threats</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-yellow-500 rounded-full" />
-              <span className="text-gray-400">Medium Risk</span>
+              <span className="text-gray-400">Concerning</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-teal-500 rounded-full" />
-              <span className="text-gray-400">Low Risk</span>
+              <span className="text-gray-400">Worth Watching</span>
             </div>
           </div>
           <div className="overflow-x-auto">
             {timelineData.length > 0 ? (
               <ToxicityTimeline />
             ) : (
-              <div className="h-64 flex items-center justify-center text-gray-400">
-                No data available
+              <div className="h-64 flex flex-col items-center justify-center text-gray-400">
+                <p>All clear — no threat activity to show yet</p>
+                <p className="text-sm text-gray-500 mt-1">We&apos;re watching. Data will appear once monitoring starts.</p>
               </div>
             )}
           </div>

@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whistle Redesign Options for Athletes</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Space+Grotesk:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'DM Sans', sans-serif; background: #0a0a0a; color: #e0e0e0; }
+
+  .page-header {
+    text-align: center;
+    padding: 60px 20px 40px;
+    border-bottom: 1px solid #222;
+  }
+  .page-header h1 { font-size: 2.5rem; color: #fff; margin-bottom: 12px; }
+  .page-header p { font-size: 1.1rem; color: #888; max-width: 700px; margin: 0 auto; line-height: 1.6; }
+
+  /* UX Analysis Section */
+  .analysis-section {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 0 20px;
+  }
+  .analysis-section h2 {
+    font-size: 1.5rem;
+    color: #fff;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #1a9a8a;
+  }
+  .finding {
+    background: #141414;
+    border: 1px solid #222;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .finding h3 { font-size: 1rem; color: #1db9a6; margin-bottom: 8px; }
+  .finding p { font-size: 0.9rem; color: #aaa; line-height: 1.6; }
+  .finding .severity {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+  }
+  .severity.high { background: #ef444420; color: #ef4444; border: 1px solid #ef444440; }
+  .severity.medium { background: #eab30820; color: #eab308; border: 1px solid #eab30840; }
+  .severity.low { background: #3b82f620; color: #3b82f6; border: 1px solid #3b82f640; }
+
+  /* Design Options */
+  .options-container {
+    max-width: 1200px;
+    margin: 60px auto;
+    padding: 0 20px;
+  }
+  .options-container > h2 {
+    font-size: 2rem;
+    color: #fff;
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .option-card {
+    background: #111;
+    border: 1px solid #2a2a2a;
+    border-radius: 20px;
+    margin-bottom: 60px;
+    overflow: hidden;
+  }
+  .option-header {
+    padding: 32px;
+    border-bottom: 1px solid #222;
+  }
+  .option-number {
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .option-header h3 { font-size: 1.8rem; color: #fff; margin-bottom: 12px; }
+  .option-header p { font-size: 1rem; color: #888; max-width: 600px; line-height: 1.6; }
+
+  .option-body { padding: 32px; }
+
+  .mockup {
+    background: #0d0d0d;
+    border: 1px solid #1a1a1a;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+
+  /* Option 1: Command Center */
+  .opt1 .option-number { color: #14b8a6; }
+  .opt1 .option-header { background: linear-gradient(135deg, #0a1a18, #111); }
+
+  /* Option 2: Shield */
+  .opt2 .option-number { color: #6366f1; }
+  .opt2 .option-header { background: linear-gradient(135deg, #0f0d1a, #111); }
+
+  /* Option 3: Sideline */
+  .opt3 .option-number { color: #f97316; }
+  .opt3 .option-header { background: linear-gradient(135deg, #1a120a, #111); }
+
+  .changes-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 24px;
+  }
+  @media (max-width: 768px) { .changes-list { grid-template-columns: 1fr; } }
+
+  .change-item {
+    background: #0d0d0d;
+    border: 1px solid #1a1a1a;
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .change-item h4 { font-size: 0.85rem; color: #fff; margin-bottom: 6px; }
+  .change-item p { font-size: 0.8rem; color: #777; line-height: 1.5; }
+
+  /* Dashboard mockup styles */
+  .dash-mock {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 0;
+    min-height: 360px;
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 0.75rem;
+  }
+  .dash-sidebar {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .dash-logo {
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dash-logo-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+  }
+  .dash-nav-item {
+    padding: 8px 12px;
+    border-radius: 6px;
+    color: #888;
+  }
+  .dash-nav-item.active { color: #fff; }
+  .dash-main {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .dash-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .dash-stat {
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .dash-stat .label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.6; }
+  .dash-stat .value { font-size: 1.5rem; font-weight: 700; margin-top: 4px; }
+  .dash-content {
+    border-radius: 8px;
+    padding: 16px;
+    flex: 1;
+  }
+
+  /* Option 1 specific */
+  .opt1-mock .dash-sidebar { background: #0a1a18; }
+  .opt1-mock .dash-nav-item.active { background: #14b8a620; color: #14b8a6; }
+  .opt1-mock .dash-main { background: #080f0e; }
+  .opt1-mock .dash-stat { background: #0a1a18; border: 1px solid #14b8a615; }
+  .opt1-mock .dash-content { background: #0a1a18; border: 1px solid #14b8a615; }
+  .opt1-mock .dash-logo-icon { background: #14b8a6; color: #000; }
+  .opt1-mock .accent { color: #14b8a6; }
+
+  /* Option 2 specific */
+  .opt2-mock .dash-sidebar { background: #0f0d1a; }
+  .opt2-mock .dash-nav-item.active { background: #6366f120; color: #818cf8; }
+  .opt2-mock .dash-main { background: #0a0915; }
+  .opt2-mock .dash-stat { background: #0f0d1a; border: 1px solid #6366f115; }
+  .opt2-mock .dash-content { background: #0f0d1a; border: 1px solid #6366f115; }
+  .opt2-mock .dash-logo-icon { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; }
+  .opt2-mock .accent { color: #818cf8; }
+
+  /* Option 3 specific */
+  .opt3-mock .dash-sidebar { background: #1a1510; }
+  .opt3-mock .dash-nav-item.active { background: #f9731620; color: #f97316; }
+  .opt3-mock .dash-main { background: #12100a; }
+  .opt3-mock .dash-stat { background: #1a1510; border: 1px solid #f9731615; }
+  .opt3-mock .dash-content { background: #1a1510; border: 1px solid #f9731615; }
+  .opt3-mock .dash-logo-icon { background: #f97316; color: #000; }
+  .opt3-mock .accent { color: #f97316; }
+
+  .tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  .tag-athlete { background: #14b8a620; color: #14b8a6; }
+  .tag-copy { background: #eab30820; color: #eab308; }
+  .tag-ux { background: #6366f120; color: #818cf8; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Whistle Redesign Proposals</h1>
+  <p>UX/UI analysis and 3 design directions for making Whistle (NetRef Safety) a better app for athletes, referees, and their teams. All options address the UX and content issues identified below.</p>
+</div>
+
+<!-- UX ANALYSIS -->
+<div class="analysis-section">
+  <h2>UX & Content Strategy Findings</h2>
+
+  <div class="finding">
+    <span class="severity high">High Priority</span>
+    <h3>Athlete-First Language Missing</h3>
+    <p>The app uses technical moderation jargon ("pipeline runs", "classifier output", "content_action") throughout. Athletes and their managers need human language: "threats detected", "action taken", "safe to ignore". The brand name "NetRef Safety" also reads as generic — the app should speak to the athlete's experience: protecting their peace, managing their public presence, keeping their team informed.</p>
+  </div>
+
+  <div class="finding">
+    <span class="severity high">High Priority</span>
+    <h3>No Quick-Glance Safety Status</h3>
+    <p>When an athlete opens the app after a game, they need ONE answer immediately: "Am I safe?" or "There are threats that need attention." The current dashboard shows raw numbers (Total Posts: 47, High Harm: 3) but doesn't synthesize this into a clear safety signal. A threat-level indicator (green/yellow/red) with a single sentence summary would serve athletes 10x better.</p>
+  </div>
+
+  <div class="finding">
+    <span class="severity high">High Priority</span>
+    <h3>Feed Shows Harmful Content by Default</h3>
+    <p>The feed page displays all flagged content with the harmful text visible (though hideable per-item). For athletes dealing with online harassment, being forced to see this content causes real psychological harm. The default should be content-hidden with only metadata visible (author, risk level, action taken). Content should only be revealed intentionally.</p>
+  </div>
+
+  <div class="finding">
+    <span class="severity medium">Medium Priority</span>
+    <h3>Settings Don't Persist</h3>
+    <p>Auto-moderation preferences (high harm → block+delete, medium → mute, etc.) are stored only in React state. Refreshing the page loses all settings. These must be persisted to the database. This is both a UX bug and a functional gap — the AI pipeline can't actually USE these preferences for real-time moderation if they only live in the browser.</p>
+  </div>
+
+  <div class="finding">
+    <span class="severity medium">Medium Priority</span>
+    <h3>No Game-Day / Event Context</h3>
+    <p>Athletes experience spikes in harassment around specific events (games, controversial calls, public appearances). The "Monitoring Windows" feature addresses this but is buried in settings and feels disconnected from the main experience. It should be front-and-center with templates: "Game Night", "Post-Match", "Off-Season".</p>
+  </div>
+
+  <div class="finding">
+    <span class="severity medium">Medium Priority</span>
+    <h3>Navigation Labels Are Generic</h3>
+    <p>"Feed" and "Connect" don't tell athletes what these pages do. Better labels: "Threats" or "Activity" instead of "Feed"; "Accounts" instead of "Connect"; "Protection" instead of "Settings". The navigation should use the athlete's mental model, not the developer's.</p>
+  </div>
+
+  <div class="finding">
+    <span class="severity low">Low Priority</span>
+    <h3>Empty States Need Encouragement</h3>
+    <p>When there are no threats, the feed shows "No items to display" — a missed opportunity to reassure the athlete. Better: "All clear — no threats detected in the last 24 hours. We're still watching." Make the absence of threats feel like the product working, not the product being empty.</p>
+  </div>
+</div>
+
+<!-- CONTENT STRATEGY -->
+<div class="analysis-section">
+  <h2>Content Strategy Recommendations</h2>
+
+  <div class="finding">
+    <h3>Voice & Tone for Athletes</h3>
+    <p><strong>Current:</strong> Technical, detached ("Content Moderation", "Pipeline Error", "Classifier Output")<br>
+    <strong>Proposed:</strong> Protective, calm, empowering. Like a trusted team member briefing you before a press conference. Serious when threats are real, reassuring when things are calm. Never alarmist, never dismissive.<br><br>
+    Tone spectrum: <em>Serious but warm • Formal but accessible • Matter-of-fact but caring • Confident but not aggressive</em></p>
+  </div>
+
+  <div class="finding">
+    <h3>Key Copy Changes</h3>
+    <p>
+    "Content Moderation" → <strong>"Your Protection Dashboard"</strong><br>
+    "High Harm" → <strong>"Serious Threats"</strong><br>
+    "Medium Harm" → <strong>"Concerning Activity"</strong><br>
+    "Questionable" → <strong>"Worth Watching"</strong><br>
+    "Reviewed" → <strong>"Handled"</strong><br>
+    "Total Posts" → <strong>"Posts Scanned"</strong><br>
+    "Blocked Users" → <strong>"Users Blocked"</strong><br>
+    "Unreviewed" → <strong>"Needs Your Attention"</strong><br>
+    "No items to display" → <strong>"All clear — we're keeping watch"</strong><br>
+    "Feed" → <strong>"Activity"</strong><br>
+    "Connect" → <strong>"Accounts"</strong><br>
+    "Settings" → <strong>"Protection Settings"</strong>
+    </p>
+  </div>
+</div>
+
+<!-- DESIGN OPTIONS -->
+<div class="options-container">
+  <h2>3 Redesign Directions</h2>
+
+  <!-- OPTION 1: Command Center -->
+  <div class="option-card opt1">
+    <div class="option-header">
+      <div class="option-number">Option 1</div>
+      <h3>The Command Center</h3>
+      <p>A calm, focused control room aesthetic. Teal-on-dark with a clean status-first layout. The dashboard opens with a single large safety status indicator, then cascades into details. Designed for the athlete's manager or agent who checks in multiple times per day.</p>
+    </div>
+    <div class="option-body">
+      <div class="mockup">
+        <div class="dash-mock opt1-mock">
+          <div class="dash-sidebar">
+            <div class="dash-logo">
+              <div class="dash-logo-icon">W</div>
+              Whistle
+            </div>
+            <div class="dash-nav-item active">🛡️ Dashboard</div>
+            <div class="dash-nav-item">📋 Activity</div>
+            <div class="dash-nav-item">💬 Messages</div>
+            <div class="dash-nav-item">🚫 Blocked</div>
+            <div class="dash-nav-item">⚙️ Protection</div>
+            <div class="dash-nav-item">🔗 Accounts</div>
+          </div>
+          <div class="dash-main">
+            <div style="text-align:center; padding:20px; background:#14b8a610; border-radius:12px; border:1px solid #14b8a620;">
+              <div style="font-size:2.5rem;">🟢</div>
+              <div style="font-size:1.2rem; font-weight:700; color:#14b8a6; margin-top:8px;">All Clear</div>
+              <div style="font-size:0.8rem; color:#888; margin-top:4px;">No active threats in the last 24 hours</div>
+            </div>
+            <div class="dash-stats">
+              <div class="dash-stat">
+                <div class="label">Scanned</div>
+                <div class="value accent">142</div>
+              </div>
+              <div class="dash-stat">
+                <div class="label">Threats</div>
+                <div class="value" style="color:#ef4444;">3</div>
+              </div>
+              <div class="dash-stat">
+                <div class="label">Handled</div>
+                <div class="value accent">3</div>
+              </div>
+              <div class="dash-stat">
+                <div class="label">Watching</div>
+                <div class="value" style="color:#eab308;">5</div>
+              </div>
+            </div>
+            <div class="dash-content">
+              <div style="font-weight:600; margin-bottom:12px; color:#fff;">Recent Activity</div>
+              <div style="color:#666; font-size:0.8rem;">Content hidden by default — tap to reveal</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="changes-list">
+        <div class="change-item">
+          <span class="tag tag-ux">UX</span>
+          <h4>Safety Status Hero</h4>
+          <p>Large green/yellow/red status indicator at the top. One glance tells you everything.</p>
+        </div>
+        <div class="change-item">
+          <span class="tag tag-copy">Copy</span>
+          <h4>Athlete-First Language</h4>
+          <p>All labels rewritten for clarity: "Threats", "Handled", "Watching", "Protection".</p>
+        </div>
+        <div class="change-item">
+          <span class="tag tag-ux">UX</span>
+          <h4>Content Hidden by Default</h4>
+          <p>Harmful content is concealed by default. Only metadata is shown until you choose to reveal.</p>
+        </div>
+        <div class="change-item">
+          <span class="tag tag-athlete">Athlete</span>
+          <h4>Game-Day Mode Prominent</h4>
+          <p>Quick-activate "Game Day" from the dashboard — heightens monitoring automatically.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION 2: Shield & Guard -->
+  <div class="option-card opt2">
+    <div class="option-header">
+      <div class="option-number">Option 2</div>
+      <h3>Shield & Guard</h3>
+      <p>A premium, app-like experience with indigo/purple tones. Card-based layout with a personal safety score. Feels like a luxury security service. Designed for the athlete themselves — someone who wants to feel protected without diving into details.</p>
+    </div>
+    <div class="option-body">
+      <div class="mockup">
+        <div class="dash-mock opt2-mock">
+          <div class="dash-sidebar">
+            <div class="dash-logo">
+              <div class="dash-logo-icon">🛡</div>
+              Whistle
+            </div>
+            <div class="dash-nav-item active">Home</div>
+            <div class="dash-nav-item">Activity</div>
+            <div class="dash-nav-item">Messages</div>
+            <div class="dash-nav-item">Blocked</div>
+            <div class="dash-nav-item">Settings</div>
+            <div class="dash-nav-item">Accounts</div>
+          </div>
+          <div class="dash-main">
+            <div style="display:flex; gap:16px; align-items:stretch;">
+              <div style="flex:1; background:#6366f110; border:1px solid #6366f120; border-radius:12px; padding:20px; text-align:center;">
+                <div style="font-size:3rem; font-weight:700; color:#818cf8;">94</div>
+                <div style="font-size:0.75rem; color:#888; margin-top:4px;">Safety Score</div>
+                <div style="font-size:0.65rem; color:#555; margin-top:2px;">Updated 5 min ago</div>
+              </div>
+              <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+                <div style="flex:1; background:#ef444410; border:1px solid #ef444420; border-radius:8px; padding:12px;">
+                  <div style="font-size:0.65rem; color:#ef4444;">NEEDS ATTENTION</div>
+                  <div style="font-size:1.2rem; font-weight:700; color:#fff;">2</div>
+                </div>
+                <div style="flex:1; background:#22c55e10; border:1px solid #22c55e20; border-radius:8px; padding:12px;">
+                  <div style="font-size:0.65rem; color:#22c55e;">AUTO-HANDLED</div>
+                  <div style="font-size:1.2rem; font-weight:700; color:#fff;">8</div>
+                </div>
+              </div>
+            </div>
+            <div class="dash-content">
+              <div style="font-weight:600; margin-bottom:8px; color:#fff;">This Week</div>
+              <div style="font-size:0.8rem; color:#666;">Your protection is active. 142 posts scanned, 2 threats neutralized.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="changes-list">
+        <div class="change-item">
+          <span class="tag tag-ux">UX</span>
+          <h4>Personal Safety Score</h4>
+          <p>0-100 score that reflects your current online safety. Drops when threats increase, recovers when handled.</p>
+        </div>
+        <div class="change-item">
+          <span class="tag tag-copy">Copy</span>
+          <h4>Passive Protection Language</h4>
+          <p>"Your protection is active", "threats neutralized" — makes the athlete feel guarded without effort.</p>
+        </div>
+        <div class="change-item">
+          <span class="tag tag-athlete">Athlete</span>
+          <h4>Minimal Interaction Required</h4>
+          <p>Auto-handled items are summarized, not listed. Only items needing YOUR decision are highlighted.</p>
+        </div>
+        <div class="change-item">
+          <span class="tag tag-ux">UX</span>
+          <h4>Card-Based, Not Table-Based</h4>
+          <p>Replace data tables with digestible cards. Athletes aren't reviewing spreadsheets.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION 3: Sideline Coach -->
+  <div class="option-card opt3">
+    <div class="option-header">
+      <div class="option-number">Option 3</div>
+      <h3>The Sideline Coach</h3>
+      <p>Warm, sporty aesthetic with orange/amber accents. Conversation-style layout with AI-generated summaries. Feels like getting a briefing from your team's social media manager. Designed for athletes who want context and actionable advice, not just data.</p>
+    </div>
+    <div class="option-body">
+      <div class="mockup">
+        <div class="dash-mock opt3-mock">
+          <div class="dash-sidebar">
+            <div class="dash-logo">
+              <div class="dash-logo-icon">W</div>
+              Whistle
+            </div>
+            <div class="dash-nav-item active">📊 Briefing</div>
+            <div class="dash-nav-item">🔍 Activity</div>
+            <div class="dash-nav-item">💬 DMs</div>
+            <div class="dash-nav-item">🚫 Blocked</div>
+            <div class="dash-nav-item">⚙️ Settings</div>
+            <div class="dash-nav-item">🔗 Accounts</div>
+          </div>
+          <div class="dash-main">
+            <div style="background:#f9731610; border:1px solid #f9731620; border-radius:12px; padding:20px;">
+              <div style="font-size:0.7rem; color:#f97316; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">Today's Briefing</div>
+              <div style="font-size:1rem; color:#fff; margin-top:8px; line-height:1.6;">
+                "Quiet day overall. 142 posts scanned since your game last night. 2 accounts were auto-blocked for making threats. 5 comments flagged as concerning — mostly frustrated fans, no real danger. One DM from a new account needs your team's attention."
+              </div>
+              <div style="font-size:0.75rem; color:#666; margin-top:12px;">Generated 5 minutes ago</div>
+            </div>
+            <div class="dash-stats" style="grid-template-columns: repeat(3, 1fr);">
+              <div class="dash-stat">
+                <div class="label">Scanned</div>
+                <div class="value accent">142</div>
+              </div>
+              <div class="dash-stat">
+                <div class="label">Auto-Handled</div>
+                <div class="value" style="color:#22c55e;">10</div>
+              </div>
+              <div class="dash-stat">
+                <div class="label">Review</div>
+                <div class="value" style="color:#f97316;">1</div>
+              </div>
+            </div>
+            <div class="dash-content">
+              <div style="font-weight:600; margin-bottom:8px; color:#fff;">Action Items</div>
+              <div style="font-size:0.8rem; color:#888; padding:8px; background:#f9731608; border-radius:6px; border-left:3px solid #f97316;">
+                1 DM from unknown sender flagged as potentially threatening. Review recommended.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="changes-list">
+        <div class="change-item">
+          <span class="tag tag-ux">UX</span>
+          <h4>AI-Generated Daily Briefing</h4>
+          <p>Natural language summary of the last 24 hours. Like getting a report from your social media manager.</p>
+        </div>
+        <div class="change-item">
+          <span class="tag tag-copy">Copy</span>
+          <h4>Conversational Tone</h4>
+          <p>"Quiet day" / "One thing needs attention" — speaks like a trusted advisor, not a security system.</p>
+        </div>
+        <div class="change-item">
+          <span class="tag tag-athlete">Athlete</span>
+          <h4>Action Items, Not Data</h4>
+          <p>Instead of showing all flagged content, surfaces only the 1-2 things that need human decision-making.</p>
+        </div>
+        <div class="change-item">
+          <span class="tag tag-ux">UX</span>
+          <h4>Context-Rich Summaries</h4>
+          <p>"Mostly frustrated fans, no real danger" — AI provides emotional context, not just severity numbers.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { getCurrentUser } from "@/lib/supabase/auth-helpers";
 import { db } from "@/lib/db/supabase";
 import { runPipeline } from "@/lib/agents/pipeline";
 import { isPipelineError } from "@/lib/agents/types";
@@ -67,12 +67,12 @@ const DEMO_MENTIONS = [
 ];
 
 export async function POST() {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const userId = session.user.id;
+  const userId = user.id;
   const results: Array<{ id: string; status: string; riskLevel?: string }> = [];
 
   for (const mention of DEMO_MENTIONS) {

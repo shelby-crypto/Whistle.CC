@@ -6,8 +6,8 @@ import AppShell from "@/components/AppShell";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "NetRef Safety — Content Moderation",
-  description: "AI-powered social media content moderation for professional athletes and referees",
+  title: "Whistle — Online Protection for Athletes",
+  description: "AI-powered online harassment protection for professional athletes, referees, and their teams",
 };
 
 export default function RootLayout({

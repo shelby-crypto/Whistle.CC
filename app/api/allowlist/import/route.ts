@@ -57,17 +57,30 @@ export async function POST(request: Request) {
 
     for (let i = 1; i < lines.length; i++) {
       const cols = lines[i].split(",").map((c) => c.trim());
-      const platform = cols[platformIdx]?.toLowerCase();
-      const username = cols[usernameIdx]?.replace(/^@/, "");
-      const note = noteIdx !== -1 ? cols[noteIdx] || null : null;
+      const platform = cols[platformIdx]?.toLowerCase().trim();
+      const username = cols[usernameIdx]?.trim().replace(/^@/, "");
+      const note = noteIdx !== -1 ? (cols[noteIdx]?.trim() || null) : null;
 
+      // Validate: both platform and username must be non-empty after trimming
       if (!platform || !username) {
-        rowErrors.push({ row: i + 1, error: "Missing platform or username" });
+        rowErrors.push({ row: i + 1, error: "Missing or empty platform or username" });
         continue;
       }
 
       if (!["twitter", "instagram"].includes(platform)) {
         rowErrors.push({ row: i + 1, error: `Invalid platform: ${platform}` });
+        continue;
+      }
+
+      // Validate username length (prevent DOS / storage abuse)
+      if (username.length > 255) {
+        rowErrors.push({ row: i + 1, error: "Username too long (max 255 chars)" });
+        continue;
+      }
+
+      // Validate note length (optional, but validate if present)
+      if (note && note.length > 500) {
+        rowErrors.push({ row: i + 1, error: "Note too long (max 500 chars)" });
         continue;
       }
 

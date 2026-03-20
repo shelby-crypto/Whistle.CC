@@ -118,7 +118,7 @@ export default function MessagesPage() {
         <div>
           <h1 className="text-lg sm:text-xl font-semibold text-white">Messages</h1>
           <p className="text-xs sm:text-sm text-gray-400 mt-1">
-            DMs from new/unknown senders — scanned for harmful content
+            DMs from new senders — scanned automatically for your safety
           </p>
         </div>
         <button
@@ -133,9 +133,9 @@ export default function MessagesPage() {
         <div className="text-center text-gray-500 py-12">Loading...</div>
       ) : items.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-gray-400 text-lg">No DMs flagged yet</p>
+          <p className="text-gray-400 text-lg">Your inbox is clear</p>
           <p className="text-gray-600 text-sm mt-2">
-            When someone sends you a DM for the first time, it will be scanned and appear here if flagged.
+            No concerning DMs detected. New messages from unknown senders are automatically scanned for your protection.
           </p>
         </div>
       ) : (

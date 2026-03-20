@@ -13,6 +13,28 @@ export async function GET() {
   }
 
   // Get all block actions for this user's pipeline runs
+  // First fetch the user's pipeline runs with full context
+  const { data: userPipelineRuns, error: pipelineRunsError } = await db
+    .from("pipeline_runs")
+    .select(`
+      id,
+      final_risk_level,
+      action_agent_output,
+      content_item_id
+    `)
+    .eq("user_id", user.id);
+
+  if (pipelineRunsError) {
+    return NextResponse.json({ error: pipelineRunsError.message }, { status: 500 });
+  }
+
+  const userPipelineRunIds = (userPipelineRuns ?? []).map((pr) => pr.id);
+
+  if (userPipelineRunIds.length === 0) {
+    return NextResponse.json([]);
+  }
+
+  // Now safely query platform_actions with pipeline_run ownership verified
   const { data: blockActions, error: actionsError } = await db
     .from("platform_actions")
     .select(`
@@ -27,6 +49,7 @@ export async function GET() {
     `)
     .eq("action_type", "block_sender")
     .eq("success", true)
+    .in("pipeline_run_id", userPipelineRunIds)
     .order("executed_at", { ascending: false });
 
   if (actionsError) {
@@ -36,28 +59,6 @@ export async function GET() {
   if (!blockActions?.length) {
     return NextResponse.json([]);
   }
-
-  // Fetch associated pipeline runs for context
-  const pipelineRunIds = blockActions
-    .map((a) => a.pipeline_run_id)
-    .filter(Boolean);
-
-  const { data: pipelineRuns } = await db
-    .from("pipeline_runs")
-    .select(`
-      id,
-      final_risk_level,
-      action_agent_output,
-      content_item_id,
-      user_id
-    `)
-    .in("id", pipelineRunIds);
-
-  // Filter to only this user's pipeline runs
-  const userPipelineRuns = (pipelineRuns ?? []).filter(
-    (pr) => pr.user_id === user.id
-  );
-  const userPipelineRunIds = new Set(userPipelineRuns.map((pr) => pr.id));
 
   // Fetch content items for context
   const contentItemIds = userPipelineRuns
@@ -72,10 +73,11 @@ export async function GET() {
   // Build lookup maps
   const pipelineRunMap = new Map(userPipelineRuns.map((pr) => [pr.id, pr]));
   const contentItemMap = new Map((contentItems ?? []).map((ci) => [ci.id, ci]));
+  const userPipelineRunIdSet = new Set(userPipelineRunIds);
 
   // Assemble response — only include blocks from this user's runs
   const blockedUsers = blockActions
-    .filter((action) => userPipelineRunIds.has(action.pipeline_run_id))
+    .filter((action) => userPipelineRunIdSet.has(action.pipeline_run_id))
     .map((action) => {
       const pipelineRun = pipelineRunMap.get(action.pipeline_run_id);
       const contentItem = pipelineRun?.content_item_id

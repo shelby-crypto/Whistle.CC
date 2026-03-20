@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "@/lib/db/supabase";
 import { processContentItem, contentExists } from "@/lib/polling/poller";
 
@@ -11,6 +12,7 @@ import { processContentItem, contentExists } from "@/lib/polling/poller";
 // POST → Incoming events
 
 const VERIFY_TOKEN = process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN ?? "";
+const META_APP_SECRET = process.env.META_APP_SECRET ?? "";
 
 // ── GET: Webhook verification challenge ─────────────────────────────────────
 
@@ -110,9 +112,39 @@ async function isNewConversation(userId: string, senderIgId: string, senderUsern
 // ── POST: Incoming webhook events ───────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  // ── Signature Verification ──────────────────────────────────────────────
+  const signature = req.headers.get("x-hub-signature-256");
+  if (!signature || !META_APP_SECRET) {
+    console.error("[webhook/instagram] Missing signature or app secret");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Read raw body for signature verification
+  const rawBody = await req.text();
+
+  // Compute HMAC-SHA256
+  const expectedSignature = "sha256=" + createHmac("sha256", META_APP_SECRET)
+    .update(rawBody)
+    .digest("hex");
+
+  // Constant-time comparison
+  try {
+    const signatureBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expectedSignature);
+    if (signatureBuffer.length !== expectedBuffer.length) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!timingSafeEqual(signatureBuffer, expectedBuffer)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Parse the body as JSON
   let body: WebhookPayload;
   try {
-    body = await req.json();
+    body = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }

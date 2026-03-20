@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { getCurrentUser } from "@/lib/supabase/auth-helpers";
 import { db } from "@/lib/db/supabase";
 import { decryptTokenFromStorage } from "@/lib/db/encrypt";
 
@@ -8,12 +8,12 @@ import { decryptTokenFromStorage } from "@/lib/db/encrypt";
 // platform_user_id + platform_username in Supabase. Useful when the initial
 // OAuth connect failed due to Twitter's /users/me returning 503.
 export async function POST() {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const userId = session.user.id;
+  const userId = user.id;
 
   // Fetch the stored Twitter token row
   const { data: row, error: rowErr } = await db
