@@ -52,6 +52,12 @@ interface ClassifierOutput {
 interface ActionAgentOutput {
   action_basis: string;
   final_risk_level: string;
+  actions_executed: {
+    content_action: string;
+    account_action: string;
+    supplementary_actions: string[];
+  };
+  irreversible_action_justification: string | null;
   [key: string]: unknown;
 }
 
@@ -575,34 +581,62 @@ function FeedPageContent() {
 
                   // Build human-readable description from harm scores
                   const harmScores = selectedFeed.classifier_output?.harm_scores;
-                  const flaggedCategories: string[] = [];
+                  const severeCategories: string[] = [];
+                  const highCategories: string[] = [];
+                  const mediumCategories: string[] = [];
+
+                  // Friendly labels for harm categories
+                  const friendlyLabels: Record<string, string> = {
+                    'H1_gender': 'gender-based harassment',
+                    'H2_sexual_orientation': 'harassment based on sexual orientation',
+                    'H3_body_appearance': 'body shaming',
+                    'H4_racial_identity': 'racial harassment',
+                    'H5_political': 'political harassment',
+                    'H6_professional_competence': 'attacks on professional competence',
+                    'H7_religion': 'religious harassment',
+                    'H8_nationality_immigration': 'nationality-based harassment',
+                    'H9_sexualization': 'sexual harassment',
+                    'H10_threats_violence': 'threats of violence',
+                    'H11_doxxing_privacy': 'doxxing or privacy violation',
+                    'H12_betting_harassment': 'betting-related harassment',
+                    'H13_coordinated_harassment': 'coordinated harassment',
+                  };
+
                   if (harmScores) {
                     HARM_CATEGORIES.forEach((cat) => {
                       const entry = harmScores[cat.key];
                       const level = scoreEntryToLevel(entry);
-                      if (level === 'severe' || level === 'high') {
-                        flaggedCategories.push(cat.label.toLowerCase());
-                      }
+                      const friendly = friendlyLabels[cat.key] || cat.label.toLowerCase();
+                      if (level === 'severe') severeCategories.push(friendly);
+                      else if (level === 'high') highCategories.push(friendly);
+                      else if (level === 'medium') mediumCategories.push(friendly);
                     });
                   }
 
-                  const classifierReasoning = selectedFeed.classifier_output?.reasoning;
-                  const actionBasis = selectedFeed.action_agent_output?.action_basis;
+                  // Build a natural-language summary
+                  const allFlagged = [...severeCategories, ...highCategories];
+                  let summary = '';
+
+                  if (allFlagged.length === 0 && mediumCategories.length === 0) {
+                    summary = 'This content was reviewed by Whistle\'s AI and flagged for further analysis.';
+                  } else if (allFlagged.length === 1) {
+                    summary = `This content was flagged for ${allFlagged[0]}.`;
+                  } else if (allFlagged.length === 2) {
+                    summary = `This content was flagged for ${allFlagged[0]} and ${allFlagged[1]}.`;
+                  } else if (allFlagged.length > 2) {
+                    summary = `This content was flagged for ${allFlagged.slice(0, -1).join(', ')}, and ${allFlagged[allFlagged.length - 1]}.`;
+                  } else if (mediumCategories.length > 0) {
+                    summary = `This content showed signs of ${mediumCategories.join(' and ')}.`;
+                  }
+
+                  // Add severity context
+                  if (severeCategories.length > 0) {
+                    summary += ' The threat level was assessed as severe — this may require immediate attention.';
+                  }
 
                   return (
                     <div className="space-y-3">
-                      {/* Reasoning in plain language */}
-                      {typeof classifierReasoning === 'string' && classifierReasoning.length > 0 && (
-                        <p className="text-sm text-gray-300 leading-relaxed">{classifierReasoning}</p>
-                      )}
-                      {flaggedCategories.length > 0 && (
-                        <p className="text-sm text-gray-400">
-                          Flagged for: <span className="text-gray-200 font-medium">{flaggedCategories.join(', ')}</span>
-                        </p>
-                      )}
-                      {!(typeof classifierReasoning === 'string' && classifierReasoning.length > 0) && flaggedCategories.length === 0 && (
-                        <p className="text-sm text-gray-400 italic">No additional details available.</p>
-                      )}
+                      <p className="text-sm text-gray-300 leading-relaxed">{summary}</p>
                     </div>
                   );
                 })()}
@@ -612,24 +646,52 @@ function FeedPageContent() {
               <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                 <h3 className="text-sm font-semibold text-gray-100 mb-3">What Whistle did</h3>
                 {(() => {
-                  const actionBasis = selectedFeed.action_agent_output?.action_basis;
-                  const action = selectedFeed.final_action;
+                  const actionOutput = selectedFeed.action_agent_output;
+                  const contentAction = selectedFeed.final_action;
+                  // Extract account_action from the action agent output
+                  const accountAction = actionOutput && !('error' in actionOutput)
+                    ? (actionOutput as ActionAgentOutput).actions_executed?.account_action
+                    : null;
 
-                  const actionDescriptions: Record<string, string> = {
-                    'block_sender': `Blocked @${selectedFeed.author_handle || 'this user'} immediately to prevent further contact.`,
-                    'delete': 'Removed the post so it\'s no longer visible to you or others.',
-                    'hide': 'Hidden the post from your view. The original is still on the platform but you won\'t see it.',
-                    'mute_sender': `Muted @${selectedFeed.author_handle || 'this user'} — their future posts won\'t appear in your mentions.`,
-                    'log': 'Logged this for your review. No automatic action was taken — this one needs your judgment.',
-                  };
+                  // Build list of actions taken
+                  const actionsTaken: string[] = [];
 
-                  const desc = actionDescriptions[action] || 'No automatic action was taken.';
+                  // Content actions
+                  if (contentAction === 'delete') {
+                    actionsTaken.push('Removed the post so it\'s no longer visible to you or others.');
+                  } else if (contentAction === 'hide') {
+                    actionsTaken.push('Hidden the post from your view. The original is still on the platform but you won\'t see it.');
+                  }
+
+                  // Account actions
+                  if (accountAction === 'block_sender') {
+                    actionsTaken.push(`Blocked @${selectedFeed.author_handle || 'this user'} so they can no longer contact you.`);
+                  } else if (accountAction === 'mute_sender') {
+                    actionsTaken.push(`Muted @${selectedFeed.author_handle || 'this user'} — their future posts won't appear in your mentions.`);
+                  }
+
+                  // If nothing was done
+                  if (actionsTaken.length === 0) {
+                    if (contentAction === 'log') {
+                      actionsTaken.push('Logged this for your review. No automatic action was taken — this one needs your judgment.');
+                    } else {
+                      actionsTaken.push('No automatic action was taken.');
+                    }
+                  }
 
                   return (
                     <div className="space-y-3">
-                      <p className="text-sm text-gray-300 leading-relaxed">{desc}</p>
-                      {typeof actionBasis === 'string' && actionBasis.length > 0 && (
-                        <p className="text-xs text-gray-500 italic">{actionBasis}</p>
+                      {actionsTaken.length === 1 ? (
+                        <p className="text-sm text-gray-300 leading-relaxed">{actionsTaken[0]}</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {actionsTaken.map((action, i) => (
+                            <li key={i} className="text-sm text-gray-300 leading-relaxed flex items-start gap-2">
+                              <span className="text-teal-400 mt-0.5">•</span>
+                              {action}
+                            </li>
+                          ))}
+                        </ul>
                       )}
                       {selectedFeed.safety_override_applied && (
                         <div className="bg-orange-900 bg-opacity-30 border border-orange-700 rounded-lg p-3 mt-2">
