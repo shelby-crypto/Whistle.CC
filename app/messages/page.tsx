@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseBrowser } from '@/lib/supabase/browser';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Browser Supabase client — attaches the user's auth session so RLS
+// policies based on auth.uid() return the correct rows.
+const supabase = getSupabaseBrowser();
 
 interface DmItem {
   id: string;
