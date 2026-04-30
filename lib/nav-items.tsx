@@ -1,4 +1,6 @@
-export const NAV_ITEMS = [
+import { FEATURES } from "./feature-flags";
+
+const ALL_NAV_ITEMS = [
   {
     href: "/",
     label: "Dashboard",
@@ -55,3 +57,13 @@ export const NAV_ITEMS = [
     ),
   },
 ];
+
+// Filter nav entries based on feature flags. Routes whose flag is off are
+// removed from the sidebar/bottom nav. The page files themselves also
+// redirect direct URL access to / when their flag is off, so a beta user
+// can't reach a hidden page even by typing the URL.
+export const NAV_ITEMS = ALL_NAV_ITEMS.filter((item) => {
+  if (item.href === "/messages" && !FEATURES.messages) return false;
+  if (item.href === "/blocked-users" && !FEATURES.blockedUsers) return false;
+  return true;
+});

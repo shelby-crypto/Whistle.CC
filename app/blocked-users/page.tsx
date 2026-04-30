@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { FEATURES } from '@/lib/feature-flags';
 
 // Inline SVG icons
 function SearchIcon({ className }: { className?: string }) {
@@ -41,6 +43,7 @@ const RISK_COLORS: Record<string, string> = {
 };
 
 export default function BlockedUsersPage() {
+  const router = useRouter();
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
@@ -49,6 +52,12 @@ export default function BlockedUsersPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [unblockConfirmId, setUnblockConfirmId] = useState<string | null>(null);
   const [unblocking, setUnblocking] = useState(false);
+
+  // Feature-flag gate: bounce direct URL access to the dashboard when the
+  // Blocked Users feature is hidden. Backend block/mute actions stay enabled.
+  useEffect(() => {
+    if (!FEATURES.blockedUsers) router.replace('/');
+  }, [router]);
 
   const fetchBlockedUsers = useCallback(async () => {
     try {
@@ -112,6 +121,9 @@ export default function BlockedUsersPage() {
       </div>
     );
   }
+
+  // Feature-flag gate: render nothing while the redirect runs.
+  if (!FEATURES.blockedUsers) return null;
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">

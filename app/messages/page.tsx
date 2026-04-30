@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { getSupabaseBrowser } from '@/lib/supabase/browser';
+import { FEATURES } from '@/lib/feature-flags';
 
 // Browser Supabase client — attaches the user's auth session so RLS
 // policies based on auth.uid() return the correct rows.
@@ -32,9 +34,16 @@ const RISK_COLORS: Record<string, string> = {
 };
 
 export default function MessagesPage() {
+  const router = useRouter();
   const [items, setItems] = useState<DmItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<DmItem | null>(null);
+
+  // Feature-flag gate: bounce direct URL access to the dashboard when the
+  // Messages feature is hidden. Backend DM ingestion stays running.
+  useEffect(() => {
+    if (!FEATURES.messages) router.replace('/');
+  }, [router]);
 
   const fetchDms = useCallback(async () => {
     setLoading(true);
@@ -110,6 +119,9 @@ export default function MessagesPage() {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
       ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
+
+  // Feature-flag gate: render nothing while the redirect runs.
+  if (!FEATURES.messages) return null;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-0">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { FEATURES } from '@/lib/feature-flags';
 
 // Inline SVG icons
 function ChevronDownIcon({ className }: { className?: string }) {
@@ -327,6 +328,7 @@ export default function SettingsPage() {
         </div>
 
         {/* ── Allowlist Section ─────────────────────────────────────────────── */}
+        {FEATURES.allowlist && (
         <div className="mb-8 sm:mb-12">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div>
@@ -492,6 +494,7 @@ export default function SettingsPage() {
             )}
           </div>
         </div>
+        )}
 
         {/* 1. Social Listening Section */}
         <div className="mb-8 sm:mb-12">
@@ -605,6 +608,7 @@ export default function SettingsPage() {
         </div>
 
         {/* 3. Profile Toxicity Detection */}
+        {FEATURES.profileToxicity && (
         <div className="mb-8 sm:mb-12">
           <h2 className="text-xl sm:text-2xl font-semibold text-white mb-4">Profile Toxicity Detection</h2>
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
@@ -631,8 +635,10 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* 4. Betting Risk Analysis */}
+        {FEATURES.bettingRisk && (
         <div className="mb-8 sm:mb-12">
           <h2 className="text-xl sm:text-2xl font-semibold text-white mb-4">Betting Risk Analysis</h2>
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
@@ -680,6 +686,7 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* 5. Monitoring Windows Section */}
         <div className="mb-12">
@@ -722,7 +729,7 @@ export default function SettingsPage() {
       </div>
 
       {/* ── Add to Allowlist Modal ──────────────────────────────────────────── */}
-      {addModalOpen && (
+      {FEATURES.allowlist && addModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-md">
             <h3 className="text-xl font-semibold text-white mb-4">Add to Allowlist</h3>
@@ -789,7 +796,7 @@ export default function SettingsPage() {
       )}
 
       {/* ── CSV Import Preview Modal ────────────────────────────────────────── */}
-      {csvModalOpen && (
+      {FEATURES.allowlist && csvModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-lg">
             <h3 className="text-xl font-semibold text-white mb-4">CSV Import Preview</h3>
