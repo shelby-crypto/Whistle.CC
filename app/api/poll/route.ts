@@ -1,22 +1,18 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/supabase/auth-helpers";
 import { pollAllAccounts } from "@/lib/polling/poller";
+import { withLock } from "@/lib/polling/lock";
 
-// ── In-process concurrency guard ───────────────────────────────────────────
-// Prevents two simultaneous poll requests from racing through the pipeline
-// and producing duplicate content_items / pipeline_runs.
+// ── Manual poll trigger ────────────────────────────────────────────────────
+// Used by the "Poll Now" button on the Connect screen. Authenticated against
+// the current Supabase user.
 //
-// This is a module-level singleton, so it persists across requests within the
-// same Node.js worker. In a multi-replica deployment you'd want a distributed
-// lock (e.g., Supabase advisory lock), but for a single-instance Next.js app
-// this is sufficient and avoids a round-trip.
-
-const POLL_LOCK_TIMEOUT_MS = 120_000; // 2 min — safety valve if a poll hangs
-
-const pollLock = {
-  running: false,
-  startedAt: 0,
-};
+// Concurrency is enforced by a Postgres-backed distributed lock (see
+// lib/polling/lock.ts), shared with the cron route at /api/cron/poll. This
+// replaces the previous in-process module-level lock, which only worked
+// within a single Node worker — Vercel serverless invocations don't share
+// memory across instances, so the in-process lock couldn't actually prevent
+// overlapping polls between cron and manual triggers.
 
 export async function POST() {
   const user = await getCurrentUser();
@@ -24,43 +20,34 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Check for an existing in-flight poll
-  if (pollLock.running) {
-    const elapsed = Date.now() - pollLock.startedAt;
+  const outcome = await withLock(() => pollAllAccounts());
 
-    if (elapsed < POLL_LOCK_TIMEOUT_MS) {
-      return NextResponse.json(
-        {
-          error: "A poll is already in progress.",
-          elapsedMs: elapsed,
-        },
-        {
-          status: 409,
-          headers: {
-            "Retry-After": String(Math.ceil((POLL_LOCK_TIMEOUT_MS - elapsed) / 1000)),
-          },
-        }
-      );
-    }
-
-    // Stale lock — previous poll must have crashed without releasing. Force-reset.
-    console.warn("[poll] Stale lock detected after %dms — resetting.", elapsed);
-  }
-
-  pollLock.running = true;
-  pollLock.startedAt = Date.now();
-
-  try {
-    const result = await pollAllAccounts();
-    return NextResponse.json(result);
-  } catch (err) {
+  if (!outcome.acquired) {
     return NextResponse.json(
-      { error: "Poll failed", details: err instanceof Error ? err.message : String(err) },
-      { status: 500 }
+      {
+        error: "A poll is already in progress.",
+        heldBy: outcome.heldBy,
+        expiresAt: outcome.expiresAt,
+      },
+      {
+        status: 409,
+        headers: outcome.expiresAt
+          ? {
+              "Retry-After": String(
+                Math.max(
+                  1,
+                  Math.ceil(
+                    (new Date(outcome.expiresAt).getTime() - Date.now()) / 1000
+                  )
+                )
+              ),
+            }
+          : {},
+      }
     );
-  } finally {
-    pollLock.running = false;
   }
+
+  return NextResponse.json(outcome.result);
 }
 
 export async function GET() {
