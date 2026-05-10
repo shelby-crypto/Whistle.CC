@@ -22,8 +22,14 @@ export async function runClassifier(
     };
   }
 
+  // PROMPT-INJECTION DEFENSE: wrap the raw user content in
+  // <user_content>...</user_content> tags so the system prompt's injection-
+  // defense rules can refer to a stable boundary. Anything inside is DATA;
+  // the model is instructed never to treat it as instructions. The "context"
+  // object is system metadata and stays outside the tags.
+  //
   // PRIVACY: don't log `userMessage` — it carries the raw user content.
-  const userMessage = JSON.stringify({ content, context });
+  const userMessage = `<context>${JSON.stringify(context)}</context>\n<user_content>${content}</user_content>`;
   console.log("[classifier] Calling Anthropic API with model claude-haiku-4-5-20251001...");
 
   try {

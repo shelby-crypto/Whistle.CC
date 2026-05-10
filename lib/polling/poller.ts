@@ -4,8 +4,8 @@ import { fetchRecentComments, hideComment, deleteComment } from "@/lib/platforms
 import { normalizeContent } from "@/lib/platforms/normalizer";
 import { runPipeline } from "@/lib/agents/pipeline";
 import { isPipelineError } from "@/lib/agents/types";
-import { loadExplicitAllowlistSet, checkAllowlist } from "@/lib/allowlist/check";
-import { fetchFollowedAccounts } from "@/lib/allowlist/followed-accounts";
+import { checkAllowlist } from "@/lib/allowlist/check";
+import { loadCombinedAllowlist } from "@/lib/allowlist/load-combined";
 import type { PollResult, ActionAgentOutput } from "@/lib/agents/types";
 
 // ── Retry helper ───────────────────────────────────────────────────────────
@@ -406,11 +406,9 @@ export async function pollAllAccounts(): Promise<PollResult> {
 
       try {
         // ── Build combined allowlist for this user+platform ───────────────
-        // Load explicit allowlist from DB + fetch followed accounts from platform API.
-        // Merge into a single Set for O(1) lookups during content processing.
-        const explicitAllowlist = await loadExplicitAllowlistSet(userId, platform);
-        const followedAccounts = await fetchFollowedAccounts(userId, platform);
-        const combinedAllowlistSet = new Set([...explicitAllowlist, ...followedAccounts]);
+        // Shared helper used by every ingest path (poll, webhook drain,
+        // seed-demo) so behaviour stays consistent.
+        const combinedAllowlistSet = await loadCombinedAllowlist(userId, platform);
 
         if (platform === "twitter") {
           const sinceId = await getPollCursor(userId, "twitter");
