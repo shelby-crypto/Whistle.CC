@@ -442,9 +442,25 @@ export async function pollAllAccounts(): Promise<PollResult> {
 
             if (ok) {
               pipelineRunsCreated++;
-              // Track the numerically highest tweet ID (snowflake IDs sort chronologically)
-              if (!latestId || BigInt(mention.id) > BigInt(latestId)) {
-                latestId = mention.id;
+              // P1-9: tweet IDs from Twitter are decimal snowflakes, but the
+              // upstream payload is opaque. Skip cursor advancement for any
+              // ID that doesn't look numeric instead of throwing out of the
+              // whole poll cycle.
+              if (/^\d+$/.test(mention.id)) {
+                try {
+                  if (!latestId || BigInt(mention.id) > BigInt(latestId)) {
+                    latestId = mention.id;
+                  }
+                } catch (e) {
+                  console.warn(
+                    `[poller] BigInt conversion failed for mention.id=${mention.id}`,
+                    e
+                  );
+                }
+              } else {
+                console.warn(
+                  `[poller] Skipping non-numeric mention.id for cursor: ${mention.id}`
+                );
               }
             }
           }

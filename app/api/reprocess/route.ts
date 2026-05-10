@@ -5,6 +5,12 @@ import { isPipelineError } from "@/lib/agents/types";
 import type { ActionAgentOutput } from "@/lib/agents/types";
 import { normalizeContent } from "@/lib/platforms/normalizer";
 import { getCurrentUser } from "@/lib/supabase/auth-helpers";
+import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+// P1-22: opt every mutating/state-bearing API route out of static
+// optimization and onto the Node runtime so writes are never cached or
+// silently routed to the edge runtime where the Supabase client misbehaves.
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export const maxDuration = 300; // Allow up to 5 min for reprocessing
 
@@ -15,6 +21,16 @@ export async function POST() {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // P1-13: cap reprocess invocations per user. Each call processes up to
+  // BATCH_SIZE items through the full pipeline; 30/hour bounds the amplified
+  // Anthropic spend even in the worst case.
+  const decision = await rateLimit(user.id, "reprocess", 30, 60 * 60);
+  if (!decision.ok) {
+    const { body, status, headers } = rateLimitHeaders(decision);
+    return NextResponse.json(body, { status, headers });
+  }
+
   try {
     // Find content items where the pipeline genuinely failed:
     // - risk_level = "error" (new format — pipeline explicitly errored)

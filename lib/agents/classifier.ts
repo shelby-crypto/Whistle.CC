@@ -3,24 +3,22 @@ import { CLASSIFIER_SYSTEM_PROMPT } from "./prompts/classifier";
 import type { ClassifierOutput, ContentContext, PipelineError } from "./types";
 import { extractJSON } from "./extract-json";
 
+// P1-14: fail fast on missing API key. Constructing the SDK with an empty
+// string used to silently produce 401s at first call; throwing at module load
+// surfaces the misconfig in deploy logs instead of in user-facing 500s.
 const apiKey = process.env.ANTHROPIC_API_KEY;
 if (!apiKey) {
-  console.error("[classifier] ANTHROPIC_API_KEY is not set!");
+  throw new Error(
+    "[classifier] ANTHROPIC_API_KEY is required but was not set"
+  );
 }
-const client = new Anthropic({ apiKey: apiKey ?? "" });
+const client = new Anthropic({ apiKey });
 
 export async function runClassifier(
   content: string,
   context: ContentContext
 ): Promise<ClassifierOutput | PipelineError> {
-  if (!apiKey) {
-    console.error("[classifier] ANTHROPIC_API_KEY missing — cannot call API");
-    return {
-      error: "missing_api_key",
-      stage: "classifier",
-      details: "ANTHROPIC_API_KEY environment variable is not set",
-    };
-  }
+  // P1-14: missing-key check moved to module load; nothing to do here.
 
   // PROMPT-INJECTION DEFENSE: wrap the raw user content in
   // <user_content>...</user_content> tags so the system prompt's injection-

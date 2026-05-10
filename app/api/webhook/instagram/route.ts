@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "@/lib/db/supabase";
 import { enqueueWebhookEvent } from "@/lib/ingest/webhook-queue";
+// P1-22: opt every mutating/state-bearing API route out of static
+// optimization and onto the Node runtime so writes are never cached or
+// silently routed to the edge runtime where the Supabase client misbehaves.
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 // ── Instagram Webhook Handler ───────────────────────────────────────────────
 // Receives real-time notifications from Meta's webhook system:

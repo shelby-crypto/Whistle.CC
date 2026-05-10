@@ -21,15 +21,19 @@ export async function fetchRecentComments(
   const { accessToken } = active;
 
   try {
+    // P1-16: keep the access token out of the URL — Meta's edge logs and
+    // any intermediate proxies will record query strings. Bearer header
+    // is supported by graph.instagram.com for all GET requests.
     const mediaUrl = new URL(`${IG_GRAPH}/me/media`);
     mediaUrl.searchParams.set(
       "fields",
       "id,timestamp,comments_count,comments{id,text,timestamp}"
     );
     mediaUrl.searchParams.set("limit", "25");
-    mediaUrl.searchParams.set("access_token", accessToken);
 
-    const mediaRes = await fetch(mediaUrl.toString());
+    const mediaRes = await fetch(mediaUrl.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
 
     if (mediaRes.status === 401) {
       console.error("[instagram] Unauthorized (401) for user:", userId);
@@ -108,10 +112,17 @@ export async function hideComment(userId: string, commentId: string): Promise<bo
   if (!active) return false;
 
   try {
-    const url = new URL(`${IG_GRAPH}/${commentId}`);
-    url.searchParams.set("hide", "true");
-    url.searchParams.set("access_token", active.accessToken);
-    const res = await fetch(url.toString(), { method: "POST" });
+    // P1-16: hide=true belongs in the POST body alongside the bearer
+    // auth header, not in the URL.
+    const body = new URLSearchParams({ hide: "true" });
+    const res = await fetch(`${IG_GRAPH}/${commentId}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${active.accessToken}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body,
+    });
     return res.ok;
   } catch (err) {
     console.error("[instagram] hideComment threw:", err);
@@ -128,9 +139,11 @@ export async function deleteComment(userId: string, commentId: string): Promise<
   if (!active) return false;
 
   try {
-    const url = new URL(`${IG_GRAPH}/${commentId}`);
-    url.searchParams.set("access_token", active.accessToken);
-    const res = await fetch(url.toString(), { method: "DELETE" });
+    // P1-16: access token via Bearer header rather than query string.
+    const res = await fetch(`${IG_GRAPH}/${commentId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${active.accessToken}` },
+    });
     return res.ok;
   } catch (err) {
     console.error("[instagram] deleteComment threw:", err);

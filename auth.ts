@@ -15,12 +15,21 @@ async function exchangeInstagramToken(shortLivedToken: string): Promise<{
   expires_in?: number;
 } | null> {
   try {
-    const url = new URL(`${IG_GRAPH}/access_token`);
-    url.searchParams.set("grant_type", "ig_exchange_token");
-    url.searchParams.set("client_secret", process.env.META_APP_SECRET!);
-    url.searchParams.set("access_token", shortLivedToken);
+    // P1-16: send credentials in the POST body, never the URL. Putting
+    // client_secret / access_token in query strings exposes them in our
+    // (and Meta's) HTTP access logs and any HTTP referer chains. Per
+    // RFC 6749 §4.5 / §2.3.1 these belong in the request body.
+    const body = new URLSearchParams({
+      grant_type: "ig_exchange_token",
+      client_secret: process.env.META_APP_SECRET!,
+      access_token: shortLivedToken,
+    });
 
-    const res = await fetch(url.toString());
+    const res = await fetch(`${IG_GRAPH}/access_token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
     if (!res.ok) {
       console.error("[auth] IG token exchange failed:", await res.text());
       return null;

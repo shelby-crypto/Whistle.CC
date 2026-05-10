@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whistle — Research-Informed Severity Tier System</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    padding: 32px;
+    min-height: 100vh;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 4px;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: #8888aa;
+    margin-bottom: 32px;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Research callout */
+  .research-banner {
+    max-width: 1200px;
+    margin: 0 auto 28px;
+    background: linear-gradient(135deg, #1e2a4a 0%, #162040 100%);
+    border: 1px solid #2a3a5a;
+    border-radius: 12px;
+    padding: 20px 24px;
+  }
+  .research-banner h2 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #60a5fa;
+    margin-bottom: 10px;
+  }
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .stat-card {
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+  .stat-card .num {
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 2px;
+  }
+  .stat-card .label {
+    font-size: 10px;
+    color: #8888aa;
+    line-height: 1.4;
+  }
+  .stat-card .source {
+    font-size: 9px;
+    color: #555;
+    margin-top: 4px;
+  }
+
+  /* Key insight */
+  .insight-box {
+    max-width: 1200px;
+    margin: 0 auto 28px;
+    background: #2a1a1a;
+    border: 1px solid #4a2a2a;
+    border-left: 4px solid #f87171;
+    border-radius: 0 10px 10px 0;
+    padding: 16px 20px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #ddd;
+  }
+  .insight-box strong { color: #f87171; }
+
+  /* Layout: current vs proposed side by side */
+  .comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .column-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #666;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #2a2a44;
+  }
+  .problem-badge {
+    display: inline-block;
+    background: #ff4466;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  /* Severity group card */
+  .severity-group {
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    background: #16213e;
+    border: 1px solid #2a2a44;
+  }
+  .severity-header {
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .severity-header .count {
+    background: rgba(255,255,255,0.2);
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+  }
+  .severity-header .tier-label {
+    font-size: 10px;
+    font-weight: 600;
+    opacity: 0.8;
+    margin-left: 8px;
+  }
+
+  /* Color tiers — revised */
+  .tier-immediate .severity-header { background: linear-gradient(135deg, #7b2d8e, #9333ea); }
+  .tier-serious-dup .severity-header { background: #7b2d8e; }
+  .tier-serious-harm .severity-header { background: #c0392b; }
+  .tier-escalating .severity-header { background: #e67e22; }
+  .tier-monitoring .severity-header { background: #2980b9; }
+
+  /* Incident rows */
+  .threat-row {
+    display: grid;
+    grid-template-columns: 140px 1fr 60px 80px 90px;
+    align-items: center;
+    padding: 10px 16px;
+    font-size: 12px;
+    border-top: 1px solid #1a1a30;
+  }
+  .threat-row.header-row {
+    font-weight: 700;
+    color: #8888aa;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-top: none;
+  }
+  .author { font-weight: 600; color: #ccc; }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .tag-severe { background: #7b2d8e; color: #f0c0ff; }
+  .tag-high { background: #c0392b; color: #ffc0c0; }
+  .tag-medium { background: #e67e22; color: #fff3c0; }
+  .tag-low { background: #2980b9; color: #c0e0ff; }
+  .tag-type {
+    background: rgba(255,255,255,0.08);
+    color: #aaa;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .action { color: #8888aa; }
+  .date { color: #666; }
+
+  /* Annotation callouts */
+  .annotation {
+    background: #1e2a4a;
+    border-left: 3px solid #f39c12;
+    padding: 12px 16px;
+    margin: 12px 0;
+    border-radius: 0 8px 8px 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #ccc;
+  }
+  .annotation strong { color: #f39c12; }
+
+  /* Section divider */
+  .section-divider {
+    margin: 40px 0 24px;
+    padding-top: 24px;
+    border-top: 2px solid #2a2a44;
+  }
+  .section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  .section-desc {
+    font-size: 12px;
+    color: #8888aa;
+    margin-bottom: 20px;
+  }
+
+  /* Tier explanation cards */
+  .tier-explain {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    max-width: 1200px;
+    margin: 0 auto 32px;
+  }
+  .tier-card {
+    background: #16213e;
+    border-radius: 10px;
+    padding: 16px;
+    border: 1px solid #2a2a44;
+  }
+  .tier-card h3 {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .tier-card p {
+    font-size: 11px;
+    color: #999;
+    line-height: 1.5;
+  }
+  .tier-card .examples {
+    margin-top: 8px;
+    font-size: 10px;
+    color: #666;
+  }
+  .tier-card .examples span {
+    display: inline-block;
+    background: rgba(255,255,255,0.06);
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin: 2px 4px 2px 0;
+  }
+  .tier-card .key-shift {
+    margin-top: 10px;
+    font-size: 10px;
+    color: #888;
+    border-top: 1px solid #2a2a44;
+    padding-top: 8px;
+    font-style: italic;
+  }
+  .tc-immediate h3 { color: #c084fc; }
+  .tc-immediate { border-top: 3px solid #9333ea; }
+  .tc-serious h3 { color: #f87171; }
+  .tc-serious { border-top: 3px solid #c0392b; }
+  .tc-escalating h3 { color: #fbbf24; }
+  .tc-escalating { border-top: 3px solid #e67e22; }
+  .tc-monitoring h3 { color: #60a5fa; }
+  .tc-monitoring { border-top: 3px solid #2980b9; }
+
+  /* Rationale grid */
+  .rationale-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+  .rationale-card {
+    background: #16213e;
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid #2a2a44;
+  }
+  .rationale-card .icon { font-size: 20px; margin-bottom: 6px; }
+  .rationale-card .title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+  .rationale-card .desc { font-size: 11px; color: #888; line-height: 1.5; }
+
+  /* What changed callout */
+  .change-summary {
+    max-width: 1200px;
+    margin: 28px auto 0;
+    background: #1a2a1a;
+    border: 1px solid #2a4a2a;
+    border-left: 4px solid #4ade80;
+    border-radius: 0 10px 10px 0;
+    padding: 16px 20px;
+  }
+  .change-summary h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: #4ade80;
+    margin-bottom: 10px;
+  }
+  .change-item {
+    display: grid;
+    grid-template-columns: 180px 24px 1fr;
+    align-items: start;
+    font-size: 12px;
+    padding: 4px 0;
+    color: #bbb;
+  }
+  .change-item .old { color: #888; text-decoration: line-through; }
+  .change-item .arrow { color: #4ade80; text-align: center; }
+  .change-item .new { color: #fff; font-weight: 600; }
+  .change-item .why { color: #666; font-size: 10px; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<h1>Whistle Activity Feed — Research-Informed Severity Redesign</h1>
+<p class="subtitle">Built from analysis of 5 research reports covering 900,000+ social media posts targeting athletes</p>
+
+<!-- Research Data Banner -->
+<div class="research-banner">
+  <h2>What the Research Says About Abuse Targeting Athletes</h2>
+  <p style="font-size:11px;color:#999;line-height:1.5;margin-bottom:4px;">The severity system must reflect the actual harm landscape for women and LGBTQ+ athletes — not a model built around direct threats alone.</p>
+  <div class="stat-row">
+    <div class="stat-card">
+      <div class="num" style="color:#f87171;">78%</div>
+      <div class="label">of all abuse is racist or homophobic, not direct physical threats</div>
+      <div class="source">FIFA EURO 2020 + AFCON 2022</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" style="color:#fbbf24;">87%</div>
+      <div class="label">of non-racist abusive content remains live on platforms</div>
+      <div class="source">FIFA Threat Matrix Report</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" style="color:#c084fc;">51%+</div>
+      <div class="label">of abuse against women athletes is sexualized or racist</div>
+      <div class="source">World Athletics Budapest 2023</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" style="color:#60a5fa;">10.7%</div>
+      <div class="label">of athletes who experience sexual abuse actually file reports</div>
+      <div class="source">U.S. Center for SafeSport 2024</div>
+    </div>
+  </div>
+</div>
+
+<!-- Key Insight Box -->
+<div class="insight-box">
+  <strong>Why this matters for Whistle's severity system:</strong> Competitor apps treat direct physical threats as the top tier and rank everything else below. For women and LGBTQ+ athletes, identity-based abuse — racism, sexism, sexualized degradation, homophobia, coordinated harassment — constitutes 65-78% of all incidents they face. It causes documented psychological harm (53% depression/anxiety rate per SafeSport), and platforms largely ignore it (87% of non-racist abuse stays live per FIFA). A severity system that places these incidents below direct threats replicates the gap Whistle is built to close.
+</div>
+
+<!-- Tier Explanation Cards -->
+<div class="tier-explain">
+  <div class="tier-card tc-immediate">
+    <h3>Immediate Action</h3>
+    <p>Active danger requiring intervention now. Includes direct threats and active identity-based campaigns causing acute harm. A coordinated racist pile-on warrants the same urgency as a single direct threat.</p>
+    <div class="examples">Harm categories: <span>Direct Threats</span><span>Stalking</span><span>Doxxing</span><span>Active Pile-ons</span><span>Mass Sexualized Campaigns</span><span>Active Impersonation</span></div>
+    <div class="key-shift">Shift: Coordinated identity-based incidents are elevated here. World Athletics classifies 14% of abuse at law-enforcement level — much of it identity-based.</div>
+  </div>
+  <div class="tier-card tc-serious">
+    <h3>Serious Harm</h3>
+    <p>Sustained abuse causing documented psychological harm. This is where most identity-based incidents live — racism, sexism, and homophobia that platforms leave up but athletes absorb.</p>
+    <div class="examples">Harm categories: <span>Sustained Racism</span><span>Sexualized Degradation</span><span>Homophobic Abuse</span><span>Targeted Harassment</span><span>Repeat Offenders</span><span>Misogynoir</span></div>
+    <div class="key-shift">Shift: This covers 65-78% of actual abuse. SafeSport: 80.8% of athletes experience anti-inclusive behaviors; 53.1% report depression/anxiety.</div>
+  </div>
+  <div class="tier-card tc-escalating">
+    <h3>Escalating</h3>
+    <p>Patterns forming that may become Serious Harm or Immediate Action. Abuse spikes around events, and 10% of abusers produce 80% of harmful content.</p>
+    <div class="examples">Harm categories: <span>Emerging Patterns</span><span>Event-Day Spikes</span><span>Coded Language</span><span>Dogpiling Starting</span><span>New Accounts Targeting</span></div>
+    <div class="key-shift">Shift: Research shows abuse escalates around competition. Catching repeat offenders at this stage prevents higher-tier incidents.</div>
+  </div>
+  <div class="tier-card tc-monitoring">
+    <h3>Monitoring</h3>
+    <p>Low-level signals being tracked. Most won't escalate, but logging builds the pattern evidence needed for higher tiers. No action required.</p>
+    <div class="examples">Harm categories: <span>Isolated Incidents</span><span>Ambiguous Intent</span><span>Low-Frequency Negativity</span><span>Baseline Tracking</span></div>
+    <div class="key-shift">Shift: This tier builds evidence that transforms isolated incidents into visible patterns of sustained abuse over time.</div>
+  </div>
+</div>
+
+<!-- Before / After Comparison -->
+<div class="comparison">
+  <!-- CURRENT (BEFORE) -->
+  <div>
+    <div class="column-label">Current Design <span class="problem-badge">Problem</span></div>
+
+    <div class="severity-group tier-serious-dup">
+      <div class="severity-header">Serious Threats <span class="count">2</span></div>
+      <div class="threat-row header-row">
+        <div>Author</div><div>Content</div><div>Risk</div><div>Action</div><div>Date</div>
+      </div>
+      <div class="threat-row">
+        <div class="author">StalkThreat_Anon</div>
+        <div style="color:#666;font-style:italic;">Content hidden</div>
+        <div><span class="tag tag-severe">severe</span></div>
+        <div class="action">Removed</div>
+        <div class="date">3/1/2026</div>
+      </div>
+      <div class="threat-row">
+        <div class="author">ThreatAccount_X7</div>
+        <div style="color:#666;font-style:italic;">Content hidden</div>
+        <div><span class="tag tag-severe">severe</span></div>
+        <div class="action">Removed</div>
+        <div class="date">3/1/2026</div>
+      </div>
+    </div>
+
+    <div class="severity-group tier-serious-dup">
+      <div class="severity-header">Serious Threats <span class="count">2</span></div>
+      <div class="threat-row header-row">
+        <div>Author</div><div>Content</div><div>Risk</div><div>Action</div><div>Date</div>
+      </div>
+      <div class="threat-row">
+        <div class="author">ShelbyAPerkins</div>
+        <div style="color:#666;font-style:italic;">Content hidden</div>
+        <div><span class="tag tag-high">high</span></div>
+        <div class="action">Hidden</div>
+        <div class="date">3/9/2026</div>
+      </div>
+      <div class="threat-row">
+        <div class="author">CoordHarass_Real</div>
+        <div style="color:#666;font-style:italic;">Content hidden</div>
+        <div><span class="tag tag-high">high</span></div>
+        <div class="action">Hidden</div>
+        <div class="date">3/1/2026</div>
+      </div>
+    </div>
+
+    <div class="annotation">
+      <strong>Problems:</strong> Both groups say "Serious Threats" but have different risk levels and actions. Athletes must decode badge colors. This model treats identity-based incidents (impersonation, coordinated harassment) as equivalent to direct threats — when the research shows they require different responses. There is also no path for incidents that are not yet "serious" but are escalating.
+    </div>
+  </div>
+
+  <!-- PROPOSED (AFTER) -->
+  <div>
+    <div class="column-label">Research-Informed Design ✓</div>
+
+    <div class="severity-group tier-immediate">
+      <div class="severity-header">Immediate Action <span class="count">2</span></div>
+      <div class="threat-row header-row">
+        <div>Author</div><div>Harm Category</div><div>Platform</div><div>Action</div><div>Date</div>
+      </div>
+      <div class="threat-row">
+        <div class="author">StalkThreat_Anon</div>
+        <div><span class="tag-type">Direct Threat</span></div>
+        <div>X</div>
+        <div class="action">Removed</div>
+        <div class="date">3/1/2026</div>
+      </div>
+      <div class="threat-row">
+        <div class="author">ThreatAccount_X7</div>
+        <div><span class="tag-type">Direct Threat</span></div>
+        <div>X</div>
+        <div class="action">Removed</div>
+        <div class="date">3/1/2026</div>
+      </div>
+    </div>
+
+    <div class="severity-group tier-serious-harm">
+      <div class="severity-header">Serious Harm <span class="count">2</span></div>
+      <div class="threat-row header-row">
+        <div>Author</div><div>Harm Category</div><div>Platform</div><div>Action</div><div>Date</div>
+      </div>
+      <div class="threat-row">
+        <div class="author">ShelbyAPerkins</div>
+        <div><span class="tag-type">Impersonation</span></div>
+        <div>X</div>
+        <div class="action">Hidden</div>
+        <div class="date">3/9/2026</div>
+      </div>
+      <div class="threat-row">
+        <div class="author">CoordHarass_Real</div>
+        <div><span class="tag-type">Coordinated Harassment</span></div>
+        <div>X</div>
+        <div class="action">Hidden</div>
+        <div class="date">3/1/2026</div>
+      </div>
+    </div>
+
+    <div class="annotation">
+      <strong>What changed:</strong> Each tier has a unique name driven by harm impact, not physical threat level alone. "Immediate Action" covers direct threats and active coordinated campaigns. "Serious Harm" classifies sustained identity-based abuse as the serious harm it is. Harm category tags give context without jargon. The severity headline answers "how worried should I be?" at a glance.
+    </div>
+  </div>
+</div>
+
+<!-- What Changed Summary -->
+<div class="change-summary">
+  <h3>What Changed from the Previous Proposal &amp; Why</h3>
+  <div class="change-item">
+    <div class="old">Critical</div>
+    <div class="arrow">→</div>
+    <div class="new">Immediate Action <div class="why">Answers "what do I do?" — not "how bad is the taxonomy?" Now includes active identity-based campaigns alongside direct threats.</div></div>
+  </div>
+  <div class="change-item">
+    <div class="old">Serious</div>
+    <div class="arrow">→</div>
+    <div class="new">Serious Harm <div class="why">"Harm" signals this is not less important than Tier 1 — it has a different response timeline. Sustained racism, sexism, and homophobia belong here.</div></div>
+  </div>
+  <div class="change-item">
+    <div class="old">Concerning</div>
+    <div class="arrow">→</div>
+    <div class="new">Escalating <div class="why">"Concerning" is vague. "Escalating" tells the athlete something is getting worse — matching what the research shows around events and repeat offenders.</div></div>
+  </div>
+  <div class="change-item">
+    <div class="old">Worth Watching</div>
+    <div class="arrow">→</div>
+    <div class="new">Monitoring <div class="why">Cleaner and direct. Signals "we're tracking this" without minimizing the incident.</div></div>
+  </div>
+</div>
+
+<!-- Design Rationale -->
+<div class="section-divider" style="max-width:1200px;margin-left:auto;margin-right:auto;">
+  <div class="section-title">Design Rationale</div>
+  <div class="section-desc">How the research shaped these decisions</div>
+  <div class="rationale-grid">
+    <div class="rationale-card">
+      <div class="icon">📊</div>
+      <div class="title">Harm impact over threat imminence</div>
+      <div class="desc">Traditional models rank by "how close is physical danger?" But FIFA data shows 78% of abuse is identity-based, and SafeSport shows 53% of athletes develop depression/anxiety from it. Severity must reflect actual harm, not just physical proximity.</div>
+    </div>
+    <div class="rationale-card">
+      <div class="icon">⚡</div>
+      <div class="title">Coordinated abuse is elevated</div>
+      <div class="desc">Resolver found 10% of abusers produce 80% of content. A coordinated pile-on from organized accounts isn't "Concerning" — it's "Immediate Action." World Athletics flagged 14% of abuse for law enforcement review, much of it identity-based campaigns.</div>
+    </div>
+    <div class="rationale-card">
+      <div class="icon">🎯</div>
+      <div class="title">Action-oriented tier names</div>
+      <div class="desc">"Immediate Action" tells the athlete or their team what to do. "Escalating" tells them something is getting worse. Every tier name answers a question someone actually has, not a taxonomy question they don't.</div>
+    </div>
+    <div class="rationale-card">
+      <div class="icon">🏷️</div>
+      <div class="title">Harm category as context, not hierarchy</div>
+      <div class="desc">Moving the harm category to a secondary label prevents the bias where "Direct Threat" always reads as more urgent than "Sexualized Abuse." Both can appear in any tier — a sustained sexualized campaign can warrant the same urgency as a single direct threat.</div>
+    </div>
+    <div class="rationale-card">
+      <div class="icon">🔄</div>
+      <div class="title">Escalation is a first-class tier</div>
+      <div class="desc">Research shows abuse spikes around match days, penalties, and records. Having an "Escalating" tier means the system surfaces patterns before they become crises — catching the early signs that a pile-on is forming.</div>
+    </div>
+    <div class="rationale-card">
+      <div class="icon">🛡️</div>
+      <div class="title">Built for the athletes Whistle serves</div>
+      <div class="desc">Other apps treat harassment and hate as secondary to direct threats. This system is designed for women and LGBTQ+ athletes, where racism, sexism, and homophobia are the primary incidents — not edge cases.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Research Sources -->
+<div style="max-width:1200px;margin:32px auto 0;padding-top:20px;border-top:1px solid #2a2a44;">
+  <div style="font-size:11px;font-weight:700;color:#666;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;">Research Sources Informing This Design</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+    <div style="font-size:10px;color:#555;padding:8px;background:#16213e;border-radius:6px;">
+      <span style="color:#888;font-weight:600;">FIFA Threat Matrix</span> — EURO 2020 + AFCON 2022. 406,987 posts analyzed. 78% of abuse racist or homophobic. 87% of non-racist abuse remains live on platforms.
+    </div>
+    <div style="font-size:10px;color:#555;padding:8px;background:#16213e;border-radius:6px;">
+      <span style="color:#888;font-weight:600;">World Athletics</span> — Budapest 2023. 449,209 posts across 1,344 athletes. 51%+ abuse is racism and sexualized content. 14% classified for law enforcement.
+    </div>
+    <div style="font-size:10px;color:#555;padding:8px;background:#16213e;border-radius:6px;">
+      <span style="color:#888;font-weight:600;">Resolver / Kroll</span> — Online Abuse in Sports 2023. 72,995 harmful items in 6 weeks. 87% of Olympic abuse directed at women. 10% of abusers produce 80% of content.
+    </div>
+    <div style="font-size:10px;color:#555;padding:8px;background:#16213e;border-radius:6px;">
+      <span style="color:#888;font-weight:600;">U.S. Center for SafeSport</span> — 2024. 4,980 participants. 80.8% experienced anti-inclusive behaviors. 53.1% depression/anxiety. Only 10.7% file reports.
+    </div>
+    <div style="font-size:10px;color:#555;padding:8px;background:#16213e;border-radius:6px;grid-column:span 2;">
+      <span style="color:#888;font-weight:600;">SafeSport Bullying Handbook</span> — June 2025. LGBTQ+ youth face higher bullying risk. 82% witnessed homophobic behavior. Athletes with disabilities 2-4x more likely to be abused.
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

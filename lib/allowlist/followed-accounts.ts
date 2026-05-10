@@ -25,7 +25,13 @@ export async function fetchFollowedAccounts(
     }
 
     try {
+      // P1-6: cap pagination so a misbehaving cursor or a runaway following
+      // count cannot keep us in this loop indefinitely. Both bounds are
+      // generous: 50 pages × 1000 per page = 50K accounts before we stop.
+      const MAX_PAGES = 50;
+      const MAX_FOLLOWED = 50_000;
       let paginationToken: string | undefined;
+      let pageCount = 0;
       do {
         const url = new URL(
           `https://api.twitter.com/2/users/${active.platformUserId}/following`
@@ -63,6 +69,21 @@ export async function fetchFollowedAccounts(
         }
 
         paginationToken = json.meta?.next_token;
+        pageCount++;
+
+        if (pageCount >= MAX_PAGES) {
+          console.warn(
+            `[allowlist] Hit MAX_PAGES (${MAX_PAGES}) for Twitter following pagination, user=${userId}`
+          );
+          break;
+        }
+        // The set holds 2 entries per follow (id + username), so divide by 2.
+        if (followedIds.size / 2 >= MAX_FOLLOWED) {
+          console.warn(
+            `[allowlist] Hit MAX_FOLLOWED (${MAX_FOLLOWED}) for Twitter following pagination, user=${userId}`
+          );
+          break;
+        }
       } while (paginationToken);
 
       console.log(

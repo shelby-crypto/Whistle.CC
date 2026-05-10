@@ -3,7 +3,14 @@ import { FP_CHECKER_SYSTEM_PROMPT } from "./prompts/fp-checker";
 import type { ClassifierOutput, FPCheckerOutput, PipelineError } from "./types";
 import { extractJSON } from "./extract-json";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// P1-14: fail fast on misconfig instead of constructing with undefined.
+const apiKey = process.env.ANTHROPIC_API_KEY;
+if (!apiKey) {
+  throw new Error(
+    "[fp-checker] ANTHROPIC_API_KEY is required but was not set"
+  );
+}
+const client = new Anthropic({ apiKey });
 
 export async function runFPChecker(
   classifierOutput: ClassifierOutput

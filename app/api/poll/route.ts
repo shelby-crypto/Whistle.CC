@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/supabase/auth-helpers";
 import { pollAllAccounts } from "@/lib/polling/poller";
 import { withLock } from "@/lib/polling/lock";
+// P1-22: opt every mutating/state-bearing API route out of static
+// optimization and onto the Node runtime so writes are never cached or
+// silently routed to the edge runtime where the Supabase client misbehaves.
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 // ── Manual poll trigger ────────────────────────────────────────────────────
 // Used by the "Poll Now" button on the Connect screen. Authenticated against

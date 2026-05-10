@@ -140,11 +140,18 @@ export async function refreshInstagramToken(userId: string): Promise<string | nu
   }
 
   try {
-    const url = new URL("https://graph.instagram.com/refresh_access_token");
-    url.searchParams.set("grant_type", "ig_refresh_token");
-    url.searchParams.set("access_token", currentToken);
+    // P1-16: refresh credentials in the POST body, not the query string.
+    // Per RFC 6749 §6 the refresh request is application/x-www-form-urlencoded.
+    const body = new URLSearchParams({
+      grant_type: "ig_refresh_token",
+      access_token: currentToken,
+    });
 
-    const res = await fetch(url.toString());
+    const res = await fetch("https://graph.instagram.com/refresh_access_token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
 
     if (!res.ok) {
       console.error("[token-service] Instagram refresh failed, status:", res.status);

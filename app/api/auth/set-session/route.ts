@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+// P1-22: opt every mutating/state-bearing API route out of static
+// optimization and onto the Node runtime so writes are never cached or
+// silently routed to the edge runtime where the Supabase client misbehaves.
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 /**
  * POST /api/auth/set-session

@@ -4,6 +4,7 @@ import { db } from "@/lib/db/supabase";
 import { runPipeline } from "@/lib/agents/pipeline";
 import { isPipelineError } from "@/lib/agents/types";
 import type { ActionAgentOutput } from "@/lib/agents/types";
+import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
 // Realistic demo mentions a sports referee (@ShelbyAPerkins / NetRef Safety)
 // might receive — spanning the full severity spectrum so the Feed demo is compelling.
@@ -66,10 +67,33 @@ const DEMO_MENTIONS = [
   },
 ];
 
+// P1-15: seal seed-demo in production. The route writes synthetic harassment
+// data through the full pipeline and burns Anthropic budget; it has no place
+// on a customer-facing deploy. Opt back in for an internal demo by setting
+// ALLOW_SEED_DEMO=true on the relevant Vercel environment.
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export async function POST() {
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.ALLOW_SEED_DEMO !== "true"
+  ) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // P1-13: seed-demo runs the full pipeline against ~7 fixtures per call,
+  // so it has the highest per-call Anthropic cost of the three protected
+  // routes. Tighter limit than /moderate.
+  const decision = await rateLimit(user.id, "seed-demo", 10, 60 * 60);
+  if (!decision.ok) {
+    const { body, status, headers } = rateLimitHeaders(decision);
+    return NextResponse.json(body, { status, headers });
   }
 
   const userId = user.id;

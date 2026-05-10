@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/supabase/auth-helpers";
 import { runPipeline } from "@/lib/agents/pipeline";
 import type { ContentContext } from "@/lib/agents/types";
+import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+// P1-22: opt every mutating/state-bearing API route out of static
+// optimization and onto the Node runtime so writes are never cached or
+// silently routed to the edge runtime where the Supabase client misbehaves.
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 // Manual moderation test endpoint — accepts arbitrary text and runs it
 // through the full 3-agent pipeline. Returns the complete PipelineResult.
@@ -11,6 +17,15 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // P1-13: cap how often any one user can fan out Anthropic-cost calls from
+  // this endpoint. 60 per hour is generous for testing and tight enough to
+  // prevent the "tight loop burns the budget" failure mode.
+  const decision = await rateLimit(user.id, "moderate", 60, 60 * 60);
+  if (!decision.ok) {
+    const { body, status, headers } = rateLimitHeaders(decision);
+    return NextResponse.json(body, { status, headers });
   }
 
   let body: unknown;

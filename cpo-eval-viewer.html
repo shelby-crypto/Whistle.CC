@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eval Review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      --bg: #faf9f5;
+      --surface: #ffffff;
+      --border: #e8e6dc;
+      --text: #141413;
+      --text-muted: #b0aea5;
+      --accent: #d97757;
+      --accent-hover: #c4613f;
+      --green: #788c5d;
+      --green-bg: #eef2e8;
+      --red: #c44;
+      --red-bg: #fceaea;
+      --header-bg: #141413;
+      --header-text: #faf9f5;
+      --radius: 6px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Lora', Georgia, serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---- Header ---- */
+    .header {
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .header h1 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .header .instructions {
+      font-size: 0.8rem;
+      opacity: 0.7;
+      margin-top: 0.25rem;
+    }
+    .header .progress {
+      font-size: 0.875rem;
+      opacity: 0.8;
+      text-align: right;
+    }
+
+    /* ---- Main content ---- */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* ---- Sections ---- */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      flex-shrink: 0;
+    }
+    .section-header {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.75rem 1rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .section-body {
+      padding: 1rem;
+    }
+
+    /* ---- Config badge ---- */
+    .config-badge {
+      display: inline-block;
+      padding: 0.2rem 0.625rem;
+      border-radius: 9999px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-left: 0.75rem;
+      vertical-align: middle;
+    }
+    .config-badge.config-primary {
+      background: rgba(33, 150, 243, 0.12);
+      color: #1976d2;
+    }
+    .config-badge.config-baseline {
+      background: rgba(255, 193, 7, 0.15);
+      color: #f57f17;
+    }
+
+    /* ---- Prompt ---- */
+    .prompt-text {
+      white-space: pre-wrap;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+    }
+
+    /* ---- Outputs ---- */
+    .output-file {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .output-file + .output-file {
+      margin-top: 1rem;
+    }
+    .output-file-header {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .output-file-header .dl-btn {
+      font-size: 0.7rem;
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-weight: 500;
+      opacity: 0.8;
+    }
+    .output-file-header .dl-btn:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
+    .output-file-content {
+      padding: 0.75rem;
+      overflow-x: auto;
+    }
+    .output-file-content pre {
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+    }
+    .output-file-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+    }
+    .output-file-content iframe {
+      width: 100%;
+      height: 600px;
+      border: none;
+    }
+    .output-file-content table {
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+      width: 100%;
+    }
+    .output-file-content table td,
+    .output-file-content table th {
+      border: 1px solid var(--border);
+      padding: 0.375rem 0.5rem;
+      text-align: left;
+    }
+    .output-file-content table th {
+      background: var(--bg);
+      font-weight: 600;
+    }
+    .output-file-content .download-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+    .output-file-content .download-link:hover {
+      background: var(--border);
+    }
+    .empty-state {
+      color: var(--text-muted);
+      font-style: italic;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    /* ---- Feedback ---- */
+    .prev-feedback {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.625rem 0.75rem;
+      margin-top: 0.75rem;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .prev-feedback-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.25rem;
+      color: var(--text-muted);
+    }
+    .feedback-textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+      resize: vertical;
+      color: var(--text);
+    }
+    .feedback-textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .feedback-status {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      min-height: 1.1em;
+    }
+
+    /* ---- Grades (collapsible) ---- */
+    .grades-toggle {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .grades-toggle:hover {
+      color: var(--accent);
+    }
+    .grades-toggle .arrow {
+      margin-right: 0.5rem;
+      transition: transform 0.15s;
+      font-size: 0.75rem;
+    }
+    .grades-toggle .arrow.open {
+      transform: rotate(90deg);
+    }
+    .grades-content {
+      display: none;
+      margin-top: 0.75rem;
+    }
+    .grades-content.open {
+      display: block;
+    }
+    .grades-summary {
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .grade-badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .grade-pass { background: var(--green-bg); color: var(--green); }
+    .grade-fail { background: var(--red-bg); color: var(--red); }
+    .assertion-list {
+      list-style: none;
+    }
+    .assertion-item {
+      padding: 0.625rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8125rem;
+    }
+    .assertion-item:last-child { border-bottom: none; }
+    .assertion-status {
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+    .assertion-status.pass { color: var(--green); }
+    .assertion-status.fail { color: var(--red); }
+    .assertion-evidence {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+      padding-left: 1.5rem;
+    }
+
+    /* ---- View tabs ---- */
+    .view-tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 2rem;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .view-tab {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.625rem 1.25rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .view-tab:hover { color: var(--text); }
+    .view-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .view-panel { display: none; }
+    .view-panel.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+    /* ---- Benchmark view ---- */
+    .benchmark-view {
+      padding: 1.5rem 2rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .benchmark-table {
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 0.8125rem;
+      width: 100%;
+      margin-bottom: 1.5rem;
+    }
+    .benchmark-table th, .benchmark-table td {
+      padding: 0.625rem 0.75rem;
+      text-align: left;
+      border: 1px solid var(--border);
+    }
+    .benchmark-table th {
+      font-family: 'Poppins', sans-serif;
+      background: var(--header-bg);
+      color: var(--header-text);
+      font-weight: 500;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .benchmark-table tr:hover { background: var(--bg); }
+    .benchmark-table tr.benchmark-row-with { background: rgba(33, 150, 243, 0.06); }
+    .benchmark-table tr.benchmark-row-without { background: rgba(255, 193, 7, 0.06); }
+    .benchmark-table tr.benchmark-row-with:hover { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-without:hover { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-table tr.benchmark-row-avg { font-weight: 600; border-top: 2px solid var(--border); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-with { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-without { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-delta-positive { color: var(--green); font-weight: 600; }
+    .benchmark-delta-negative { color: var(--red); font-weight: 600; }
+    .benchmark-notes {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .benchmark-notes h3 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+    }
+    .benchmark-notes ul {
+      list-style: disc;
+      padding-left: 1.25rem;
+    }
+    .benchmark-notes li {
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      margin-bottom: 0.375rem;
+    }
+    .benchmark-empty {
+      color: var(--text-muted);
+      font-style: italic;
+      text-align: center;
+      padding: 3rem;
+    }
+
+    /* ---- Navigation ---- */
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .nav-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    .nav-btn:hover:not(:disabled) {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .done-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .done-btn:hover {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .done-btn.ready {
+      border: none;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+    }
+    .done-btn.ready:hover {
+      background: var(--accent-hover);
+    }
+    /* ---- Done overlay ---- */
+    .done-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+    .done-overlay.visible {
+      display: flex;
+    }
+    .done-card {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 2rem 3rem;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+    }
+    .done-card h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .done-card p {
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+    .done-card .btn-row {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+    .done-card button {
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    .done-card button:hover {
+      background: var(--bg);
+    }
+    /* ---- Toast ---- */
+    .toast {
+      position: fixed;
+      bottom: 5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 0.625rem 1.25rem;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 200;
+    }
+    .toast.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" style="height:100vh; display:flex; flex-direction:column;">
+    <div class="header">
+      <div>
+        <h1>Eval Review: <span id="skill-name"></span></h1>
+        <div class="instructions">Review each output and leave feedback below. Navigate with arrow keys or buttons. When done, copy feedback and paste into Claude Code.</div>
+      </div>
+      <div class="progress" id="progress"></div>
+    </div>
+
+    <!-- View tabs (only shown when benchmark data exists) -->
+    <div class="view-tabs" id="view-tabs" style="display:none;">
+      <button class="view-tab active" onclick="switchView('outputs')">Outputs</button>
+      <button class="view-tab" onclick="switchView('benchmark')">Benchmark</button>
+    </div>
+
+    <!-- Outputs panel (qualitative review) -->
+    <div class="view-panel active" id="panel-outputs">
+    <div class="main">
+      <!-- Prompt -->
+      <div class="section">
+        <div class="section-header">Prompt <span class="config-badge" id="config-badge" style="display:none;"></span></div>
+        <div class="section-body">
+          <div class="prompt-text" id="prompt-text"></div>
+        </div>
+      </div>
+
+      <!-- Outputs -->
+      <div class="section">
+        <div class="section-header">Output</div>
+        <div class="section-body" id="outputs-body">
+          <div class="empty-state">No output files found</div>
+        </div>
+      </div>
+
+      <!-- Previous Output (collapsible) -->
+      <div class="section" id="prev-outputs-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="togglePrevOutputs()">
+            <span class="arrow" id="prev-outputs-arrow">&#9654;</span>
+            Previous Output
+          </div>
+        </div>
+        <div class="grades-content" id="prev-outputs-content"></div>
+      </div>
+
+      <!-- Grades (collapsible) -->
+      <div class="section" id="grades-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="toggleGrades()">
+            <span class="arrow" id="grades-arrow">&#9654;</span>
+            Formal Grades
+          </div>
+        </div>
+        <div class="grades-content" id="grades-content"></div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="section">
+        <div class="section-header">Your Feedback</div>
+        <div class="section-body">
+          <textarea
+            class="feedback-textarea"
+            id="feedback"
+            placeholder="What do you think of this output? Any issues, suggestions, or things that look great?"
+          ></textarea>
+          <div class="feedback-status" id="feedback-status"></div>
+          <div class="prev-feedback" id="prev-feedback" style="display:none;">
+            <div class="prev-feedback-label">Previous feedback</div>
+            <div id="prev-feedback-text"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav" id="outputs-nav">
+      <button class="nav-btn" id="prev-btn" onclick="navigate(-1)">&#8592; Previous</button>
+      <button class="done-btn" id="done-btn" onclick="showDoneDialog()">Submit All Reviews</button>
+      <button class="nav-btn" id="next-btn" onclick="navigate(1)">Next &#8594;</button>
+    </div>
+    </div><!-- end panel-outputs -->
+
+    <!-- Benchmark panel (quantitative stats) -->
+    <div class="view-panel" id="panel-benchmark">
+      <div class="benchmark-view" id="benchmark-content">
+        <div class="benchmark-empty">No benchmark data available. Run a benchmark to see quantitative results here.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Done overlay -->
+  <div class="done-overlay" id="done-overlay">
+    <div class="done-card">
+      <h2>Review Complete</h2>
+      <p>Your feedback has been saved. Go back to your Claude Code session and tell Claude you're done reviewing.</p>
+      <div class="btn-row">
+        <button onclick="closeDoneDialog()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ---- Embedded data (injected by generate_review.py) ----
+    const EMBEDDED_DATA = {"skill_name": "cpo", "runs": [{"id": "product-review-fitness-app-with_skill", "prompt": "Review this fitness app feature (workout sharing and location-based partner discovery) from a privacy perspective as a Chief Privacy Officer. Identify critical risks around GPS location tracking, heart rate health data collection, and social graph exposure. Propose concrete alternatives that preserve user privacy while enabling the feature. Address data lifecycle (collection, storage, sharing, deletion), consent architecture, retention policies, and regulatory compliance (GDPR, CCPA). Provide both must-fix and nice-to-have recommendations with clear severity levels.", "eval_id": 1, "outputs": [{"name": "review.md", "type": "text", "content": "# Fitness App Privacy Review: Workout Sharing & Partner Discovery\n\n**Prepared by:** Chief Privacy Officer\n**Date:** March 20, 2026\n**Feature:** Workout history sharing and location-based partner discovery\n**Severity Assessment:** High-risk feature requiring significant privacy architecture work before launch\n\n---\n\n## Executive Summary\n\nThis feature involves collecting and processing three categories of sensitive personal data \u2014 precise location (GPS), health data (heart rate), and social connection information \u2014 in a way that enables re-identification and could expose detailed movement histories and health information to unintended audiences. The biggest privacy challenge I want to talk about first is the default architecture: you're collecting granular location data for every workout to power the partner-discovery feature, but you haven't yet designed the retention, access control, or deletion mechanisms that make this safe at scale.\n\n**Bottom line:** The feature is achievable and users genuinely want this capability. But it requires deliberate choices about data minimization, consent architecture, and operational controls that I don't see outlined yet. Right now this looks like a feature that collects maximum data to power maximum features. We need to flip that: collect minimum data to power the core experience, then be thoughtful about what additional data serves the product versus what serves analytics or future possibilities.\n\n---\n\n## Critical Issues (Must Fix Before Launch)\n\n### 1. GPS Data: Default-On Location Tracking Without Clear Purpose Limitation\n\n**The Risk**\n\nYou're proposing GPS collection \"during workouts\" to power location-based partner matching. This is precise location data \u2014 we're talking about coordinates that can pinpoint someone to within 5-10 meters. The challenge: precise location is a special category of personal data under GDPR (falling under the \"location data\" protection regime), and several US states now treat it as biometric data. More concretely, if you're collecting this data, you're sitting on a detailed movement history for every user.\n\n**Why This Matters**\n\n- A regulator in Germany or the UK will want to know: \"What's your lawful basis for collecting this?\" Legitimate interest doesn't cut it for precise location at scale \u2014 you need explicit opt-in. GDPR case law (e.g., Schrems II) makes clear that ongoing location tracking triggers heightened consent requirements.\n- If this data leaks, the exposure is severe. A dataset of workout routes + timestamps is a detailed movement history. Linking that to user identities creates a privacy disaster.\n- You'll need to retain this data somewhere to power the matching feature. Every day you retain it, you're increasing the surface area for a breach and the obligations you have if someone asks for deletion.\n\n**Concrete Scenario**\n\nA user in Berlin requests their data under GDPR. You have to produce: every GPS coordinate they've recorded, with timestamps. If you've been storing this for 6 months, you're talking about potentially thousands of data points per user. Your team now has to do a manual extraction across databases, verify the data, and deliver it within 30 days. If you can't produce it cleanly because it's scattered across a real-time database, an analytics warehouse, and a backup, you're looking at a supervisory authority complaint.\n\n**What We Need to Fix**\n\nYou have two paths forward. Pick one based on your product vision:\n\n**Path A: Minimize Location Data (Recommended)**\nInstead of storing precise GPS coordinates, bucket users into geographic areas at the time they share a workout. This is the data minimization approach:\n- User completes a workout with their phone tracking GPS\n- At workout completion, your app determines the metro area (or neighborhood-level tile) where the workout happened\n- Store only the area ID + workout type + duration + date, *not* the precise coordinates\n- Partner discovery then matches users by area (e.g., \"other runners in downtown Portland\") rather than true proximity matching\n- You still get a great product experience without sitting on detailed movement histories\n\nThis reduces your data retention liability by 10x and makes deletion requests trivial \u2014 you're not storing coordinates anymore.\n\n**Path B: Keep Precise Coordinates With Architectural Controls**\nIf you decide precise location is genuinely necessary for the core experience, then:\n- Get explicit, informed consent *before* the workout starts. Not a buried clause in ToS, but a clear disclosure: \"We'll collect your exact location during this workout to help find partners nearby. You can disable location sharing for this workout without affecting your fitness tracking.\"\n- Set a hard TTL (time-to-live) on location data. Delete all raw GPS coordinates after 30 days, unless the user opts into long-term storage for route history.\n- Implement automated deletion: when a user deletes a workout from their history, their location data gets purged immediately, not soft-deleted.\n- Restrict access: only the matching service and the individual user can access this data. Not analytics, not the ops team, not the admin dashboard.\n\n---\n\n### 2. Heart Rate Data: Health Information Without Clear Health/Medical Purpose\n\n**The Risk**\n\nHeart rate data from wearables is health information. Depending on context and your company's nature, it could trigger HIPAA applicability (if you're covered by HIPAA), or at minimum it triggers heightened protection obligations under privacy laws in most jurisdictions. Heart rate is also quite intimate \u2014 it reveals stress, fitness level, and can sometimes indicate health conditions.\n\n**Why This Matters**\n\n- If you're a health/medical company, you could be a HIPAA-covered entity or business associate. If you are, you need a Business Associate Agreement with your wearable partners, you need a Security Rule compliance program, and you need HIPAA-specific breach notification protocols. Failure here is a *federal crime*, not just a privacy fine.\n- Even if HIPAA doesn't apply, GDPR and state privacy laws classify health data as a special category requiring explicit, informed consent and a legitimate basis more stringent than \"user-allowed access.\"\n- The \"it's optional because users sync it from their wearable\" framing doesn't make it less sensitive. You're collecting, processing, and storing health information. You have obligations regardless of where it came from.\n\n**Concrete Scenario**\n\nYour wearable integration ingests heart rate data. A user's average resting heart rate can indicate fitness level, but it can also indicate stress, anxiety, or medical conditions. If your matching algorithm weighs heart rate fitness-level in partner recommendations (\"find users at my fitness level\"), you're using health data to make automated decisions about users. That's a \"profiling\" scenario under GDPR Article 22, which requires additional protections.\n\nIf that same data leaks and is purchased by an insurance company, you've exposed users to discrimination risk.\n\n**What We Need to Do**\n\n- **Define the purpose precisely.** What is heart rate data actually used for? If it's \"fitness level matching,\" be explicit: \"We use your heart rate data to estimate fitness level and match you with partners of similar fitness.\"\n- **Get granular consent.** Separate consent for the three uses: (1) showing your own heart rate data in your profile, (2) using it for partner matching, (3) including it in aggregated fitness stats. Let users say yes to 1 and 3 but no to 2, or any combination.\n- **Implement data minimization.** Don't store raw heart rate readings. Store derived attributes: average heart rate, max heart rate, estimated fitness level (as a category or score). This preserves the feature while reducing the sensitivity of what you're retaining.\n- **Establish retention limits.** How long do you need to keep historical heart rate data? If partner matching is real-time (\"who's active this week?\"), you probably don't need 6 months of data. Set a 30-day TTL on raw readings, keep only monthly summaries after that.\n- **Consider differential privacy for analytics.** If your product team wants to know \"what's the average heart rate of users in Portland?\" you don't need individual-level data. Use aggregation with a minimum threshold (e.g., only show stats if 50+ users are represented) or differential privacy techniques to get the insight without the granular data.\n\n---\n\n### 3. Workout Sharing: Ambient Social Data Collection & Re-identification Risk\n\n**The Risk**\n\nWorkout sharing sounds simple \u2014 \"user A shares a workout with user B.\" But the feature description suggests a broader discovery model where the system suggests partners based on location and activity. This is where you cross into ambient data collection: you're not just letting users choose who sees their data, you're using system logic to build social graphs and make inferences about users.\n\n**Why This Matters**\n\n- If you're tracking all of User A's workouts, all of User B's workouts, and calculating that they're both runners in the same area on Tuesdays, you're building a behavioral profile. You're not just facilitating sharing; you're enabling inference and matching based on sensitive activity patterns.\n- Under GDPR, this triggers \"profiling\" and potentially \"automated decision-making\" thresholds. You need to be transparent about how the matching works, and you need to offer users a way to opt out of being matched without losing access to the core product.\n- There's a re-identification risk: if you're sharing aggregated fitness insights (\"users in Portland averaged 8.5 miles this week\"), and someone can combine that with other datasets, they might be able to identify individuals. It *looks* anonymous but isn't.\n\n**Concrete Scenario**\n\nA user doesn't realize that by syncing their fitness data, the app is automatically putting them in a searchable \"partner database\" where other users can find them based on location and activity. They think they're just tracking workouts. Later, they discover an ex was recommended as a partner because they run the same neighborhood route at the same time. Privacy violation? Maybe not legally, but it's a trust disaster.\n\n**What We Need to Do**\n\n- **Separate consent for discovery.** Give users a clear choice: \"Allow your profile to appear in partner recommendations\" (default: off, or off until explicitly enabled). Don't bury this in a feature-flag or a setting three menus deep.\n- **Be specific about what gets shared.** When showing a potential partner (\"Jessica, 28, prefers running, 5-8 miles, evenings\"), what data is actually being exposed? Just activity type and frequency? Or also average pace, heart rate zones, specific route locations? Each of these is a separate data exposure decision.\n- **Implement matching server-side, not client-side.** Don't send a user's full activity history to their device so the app can \"discover\" local partners. Process the matching on your backend with access controls. This prevents the app from accidentally syncing all user data to a local device.\n- **Provide visibility and control.** Users should be able to see: \"Here's why I was matched with this person\" and \"Remove me from recommendations for this person.\" This makes the logic transparent.\n\n---\n\n## High-Priority Issues (Address Before Launch)\n\n### 4. Data Retention Policy: No Expiration Date\n\n**The Observation**\n\nI haven't seen a proposal for how long you'll keep GPS coordinates, heart rate readings, or workout history. \"Keep it forever\" is what happens by default if you don't specify a retention policy, and that's exactly what creates ongoing liability.\n\n**Why This Matters**\n\n- GDPR requires \"storage limitation\" \u2014 you have to delete personal data once it's no longer necessary for the purpose you collected it for. If you collected GPS data for partner matching, but partner matching happened weeks ago, continuing to store it is a violation.\n- Every day data sits in your database, it's a liability. Breach exposure grows. Your delete-request obligations grow. Your incident response complexity grows.\n- Backups and snapshots complicate this: you delete the data from production, but it lives in yesterday's backup for 30 days. That's still retention under the regulation.\n\n**What We Need to Do**\n\nPropose a retention schedule for each data type:\n\n| Data Type | Retention Period | Rationale | Deletion Mechanism |\n|-----------|------------------|-----------|-------------------|\n| GPS coordinates | 7 days (or session duration) | Only needed for real-time partner matching | Automated batch deletion after 7 days; user can manually delete sooner |\n| Heart rate readings (raw) | 30 days | Allow weekly/monthly fitness summaries; then aggregate | Automated purge; keep only monthly summaries |\n| Workout summaries | Until user deletion | Core product feature (user's own fitness history) | Soft-delete on user request; hard-delete after 90 days |\n| Social connection data (who matched with whom) | 365 days | For abuse detection and user safety | Automated purge after 1 year |\n\nThis is a design decision, not a compliance afterthought. Build retention into your data model from the start.\n\n---\n\n### 5. Consent Architecture: Who Actually Sees What?\n\n**The Observation**\n\nThe feature description mentions \"sharing workout history with friends\" and \"suggest partners nearby.\" These are two different sharing scenarios, but I don't see a distinction in how consent is structured.\n\n**Why This Matters**\n\n- Sharing with specific friends (User A chooses to send workout to User B) is different from being suggested as a partner to strangers (the system algorithm recommends User A to Users C, D, E based on location/activity).\n- GDPR requires consent to be specific to the purpose. You can't have one blanket consent covering both scenarios.\n- Users might be comfortable sharing with friends but not with matching with strangers. Conflating these two features means forcing users to accept one to get the other.\n\n**What We Need to Do**\n\nDesign distinct consent flows:\n\n1. **Explicit Sharing with Friends**\n   - \"Share this workout with: [search friends]\"\n   - They see: activity type, distance, time, heart rate zones (if you want to share that detail)\n   - Consent: per-workout or blanket \"allow sharing\" with granular controls on what shows\n\n2. **Partner Discovery Opt-In**\n   - Separate toggle: \"Let me appear in partner recommendations\"\n   - If enabled, disclose: \"Other users will see your location-based activity type and frequency. We won't share your name or ID unless you match and both approve.\"\n   - Consent: explicit opt-in before any data goes into the matching service\n\n3. **Granular Data Sharing**\n   - For each type of shared data (activity type, distance, heart rate, location area), let users control separately\n   - Example: \"Share activity type & distance with partners\" (enabled) vs. \"Share heart rate data\" (disabled)\n\nThis is more work than a single consent banner, but it's the difference between a feature users feel good about and one that feels invasive.\n\n---\n\n### 6. Third-Party Wearable Integration: What Data Are They Getting?\n\n**The Observation**\n\nThe feature pulls heart rate data \"from wearables\" \u2014 likely via an SDK from Fitbit, Apple Watch, Garmin, etc. Do you have data processing agreements with these vendors? Do you know what data they're collecting from your app?\n\n**Why This Matters**\n\n- Many wearable SDKs collect telemetry: how often the app crashes, which features users interact with, how long sessions last. This goes back to the vendor's servers for their analytics. If you're integrating an SDK without auditing what data it collects, you're creating a secondary data flow you don't control.\n- Some SDKs ask for broader permissions than they use: they request location to read heart rate data, or request contacts to read fitness data. Your privacy notice has to accurately disclose what's being collected, not just what *you* use.\n- If a vendor's SDK has a privacy issue, your users may hold *you* responsible even though you didn't write the code.\n\n**What We Need to Do**\n\n- Audit each wearable SDK: what data does it collect beyond heart rate? What does it send to the vendor's servers? What's the vendor's privacy policy?\n- Update your privacy notice to disclose: \"We integrate with [Fitbit/Apple Health] to sync your heart rate data. [Vendor] also collects [telemetry data] for [purpose] as described in their privacy policy at [link].\"\n- Ensure you have a Data Processing Addendum (DPA) with any wearable vendor whose SDK accesses user data. This is required under GDPR if they're processing personal data on your behalf.\n- Consider vendor lock-in risk: if you deeply integrate with one wearable ecosystem, users who switch devices feel friction. This isn't a privacy problem per se, but it affects the product experience.\n\n---\n\n## Medium-Priority Issues (Address Within 30\u201360 Days)\n\n### 7. Deletion & Data Subject Rights: Can You Actually Fulfill These?\n\n**The Observation**\n\nYou need to design how users can exercise their data rights: access (show me my data), deletion (remove my data), portability (export my data), and correction (fix inaccuracies).\n\n**Why This Matters**\n\n- GDPR, CCPA, and most state privacy laws require you to fulfill these requests within 30 days.\n- Deletion is the hard one: if a user deletes their data, you have to delete it everywhere, including: the primary database, analytics systems, backups, search indexes, and any recommender model that was trained on their data. Missing any of these is a violation.\n- If you can't actually fulfill these requests (e.g., your data is so distributed that manual deletion takes weeks), you have a design problem that needs fixing now, not discovered during a regulatory investigation later.\n\n**What We Need to Do**\n\nDesign and test your data subject request workflow:\n\n1. **Data Access Requests**\n   - Can you export: all workouts, all heart rate data, all location data, all social connections?\n   - Can you do it programmatically (API) or do you have to do it manually?\n   - Test: make a request, see if you can deliver a complete, accurate export within 7 days\n\n2. **Deletion Requests**\n   - Define what \"delete my data\" means: does it delete only workouts the user created? Also workouts they shared with friends? Also matches they participated in?\n   - Implement cascading deletion: when a user is deleted, delete their workouts \u2192 delete associated GPS data \u2192 delete heart rate data \u2192 remove from matches \u2192 remove from recommendations\n   - Test across databases: delete a user from the primary DB, then verify they're gone from analytics, backups, and any offline models you use for recommendations\n\n3. **Data Portability Requests**\n   - Can you export in a standard format (JSON, CSV) that a user could import into a competing app?\n   - Include: all workout data, all matched partners, all connections\n\nThis is an engineering task that's easier to design early than retrofit later.\n\n---\n\n### 8. Aggregation & Analytics: Differential Privacy Instead of Raw Data\n\n**The Observation**\n\nYour product team probably wants analytics: \"What's the most common route in Portland?\" \"What time of day are users most active?\" These are useful insights, but they require aggregating user data. Done naively, this can re-identify individuals.\n\n**Why This Matters**\n\n- If you query \"show me all routes in postal code 97210,\" and there are 3 users in that postal code, you've effectively identified them and their routes.\n- Even aggregates can leak: \"average age of runners in gym X\" combined with other public data might identify a specific person.\n- Privacy-preserving analytics (differential privacy, k-anonymity, aggregation thresholds) let you get insights without exposing individuals.\n\n**What We Need to Do**\n\nImplement one of these patterns:\n\n1. **Aggregation Thresholds**: Only show stats if N \u2265 50 users. \"Running in downtown Portland: 847 workouts this week\" is safe. \"Running on 3rd & Main\" with 3 users is not.\n\n2. **Differential Privacy**: Add statistical noise to aggregates so individual contributions are hidden. A DP query for \"average pace\" returns an answer that's accurate for the population but doesn't reveal any individual's data.\n\n3. **On-Device Aggregation**: Compute stats locally on each user's phone, send only the aggregate results to the backend. E.g., \"This user's running stats\" stays on the user's device; you only see \"Weekly stats: X miles, Y average pace\" summarized per user.\n\n4. **Anonymization After Aggregation**: If you absolutely need raw-level analytics, anonymize *after* you've aggregated (split by time, by location area, by activity type), not before.\n\nDon't collect granular data for analytics. Collect aggregate insights.\n\n---\n\n### 9. Default Permissions & Friction\n\n**The Observation**\n\nBy default, will users have sharing turned on, or off? Will partner discovery be opt-in, or opt-out?\n\n**Why This Matters**\n\n- GDPR and most US privacy laws treat opt-in (default off, user enables) as genuinely consented. Opt-out (default on, user disables) is treated as less reliable.\n- Users often don't change defaults. If sharing is enabled by default, most users will have it on without realizing.\n\n**What We Need to Do**\n\nMake the defaults privacy-protective:\n\n- **Workout sharing**: Default off. Users must explicitly enable and choose which friends to share with.\n- **Partner discovery**: Default off. Users opt in with a clear toggle and disclosure.\n- **Heart rate visibility**: Default off. Even if the user syncs heart rate from a wearable, don't expose it in partner profiles by default.\n- **Location visibility**: Default off. Location data is too sensitive to share by default.\n\nYes, this creates friction. It also creates trust. Users will appreciate that you're not broadcasting their data by default.\n\n---\n\n## Low-Priority Issues (Best Practices)\n\n### 10. Privacy by Design: Location Alias & Pseudonymization Opportunities\n\n**The Observation**\n\nYou could reduce privacy risk by storing location as an area code, neighborhood tile, or city block identifier instead of exact coordinates. Similarly, you could assign user IDs that don't correlate with their account email or phone number.\n\n**Why This Matters**\n\nThis isn't required, but it's best practice. Pseudonymization (replacing identifiers with tokens) makes it harder to re-identify individuals if data leaks, and it forces you to think about data minimization from the start.\n\n**What We Need to Do**\n\nConsider these enhancements:\n\n1. **Location Tiles**: Instead of (latitude, longitude), use a geohash or S2 tile ID that represents a 1km or 10km area. Partner matching still works; you're not storing precise coordinates.\n\n2. **User Pseudonyms**: Internally, track users by a UUID rather than email or phone. This prevents accidental exposure if system logs leak.\n\n3. **Hashed Identifiers for Matching**: When recommending partners, use hashed user IDs that don't expose the actual user ID or email. If the matching dataset leaks, an attacker can see \"user X matched with user Y\" but can't identify who they are without the lookup table.\n\nThese are engineering choices that make the system more privacy-respectful without losing functionality.\n\n---\n\n### 11. Transparency: Privacy Notice & Data Map\n\n**The Observation**\n\nOnce you ship this feature, you'll need a privacy notice that accurately describes what you're collecting and why. But first, you need a clear internal understanding of the data flow.\n\n**Why This Matters**\n\n- GDPR requires a privacy notice that \"describes in detail\" what data you collect, how you use it, how long you keep it, and who you share it with. If your feature description is vague (\"we track location and health data\"), your privacy notice will be vague too, and users won't actually understand what they're consenting to.\n- Creating a data map forces the product and engineering teams to actually agree on what data is being collected, where it flows, and who has access. This conversation often surfaces issues.\n\n**What We Need to Do**\n\nBuild a data map for this feature:\n\n```\nUser starts workout\n  \u2193\nApp collects: GPS coordinates, heart rate (if synced)\n  \u2193\nWhere does it go?\n  - GPS coordinates: sent to location-matching service\n  - Heart rate: sent to fitness-analytics service\n  - Workout summary: stored in user's workout history\n  \u2193\nHow long is it kept?\n  - GPS: 7 days\n  - Heart rate: 30 days (raw), 1 year (monthly summaries)\n  - Workout summary: until user deletion\n  \u2193\nWho can see it?\n  - User: can see their own complete data\n  - Matched partners: can see activity type, distance, duration (with consent)\n  - Internal analytics: can see aggregated stats (no individual data)\n  \u2193\nHow do users exercise rights?\n  - Access: export workout history via Settings \u2192 Data & Privacy\n  - Deletion: delete individual workouts or all data\n  - Opt-out: disable sharing, opt-out of recommendations\n```\n\nThis becomes your privacy notice outline. It's also a checklist for engineering: \"We promised to delete GPS after 7 days \u2014 do we have a job that does this?\"\n\n---\n\n## Questions for the Product & Engineering Teams\n\nBefore you move forward, I'd like clarity on:\n\n1. **Core Feature Scope**: Is the MVP just \"share with friends,\" or does it include \"discover partners\"? These require different privacy architecture. If it's both, can you ship friends-sharing first and add discovery later?\n\n2. **Location Precision**: What's the actual product need for GPS? Do you need coordinates accurate to 5 meters, or would neighborhood-level accuracy (to ~1km) work for the experience? This changes everything about data minimization.\n\n3. **Heart Rate**: Is heart rate essential for the MVP? Or is it a future nice-to-have that you could defer while you get the privacy foundation right?\n\n4. **Wearable Strategy**: Which wearables are you integrating with in V1? Are you planning to support multiple ecosystems (Apple, Garmin, Fitbit) or starting with one?\n\n5. **Default State**: Walk me through the first-time user experience. When does consent get requested? What's the default state for each permission? Can a user enjoy the core product (tracking their own workouts) without enabling sharing or partner discovery?\n\n6. **Data Residency**: Where will user data be stored? If you're a US company serving EU users, are you planning to use a US data center or EU cloud infrastructure? This affects your transfer mechanism (Standard Contractual Clauses, Binding Corporate Rules, etc.).\n\n---\n\n## What You're Doing Well\n\nBefore I close, I want to flag that you're asking this question at the right time. You're thinking about privacy while the feature is still being designed, not after the database schema is finalized. That's the right instinct.\n\nIf you implement the data minimization approach (storing location areas instead of coordinates, storing aggregated heart rate instead of raw readings, and getting explicit consent for different sharing scenarios), you'll have a feature that's both more privacy-protective and actually simpler to operate. Fewer data retention headaches, easier to handle deletion requests, cleaner consent flows.\n\n---\n\n## Next Steps\n\n1. **Immediate**: Use this review to align on which issues are blockers and which are follow-ups. I've rated them, but your product constraints matter \u2014 you might deprioritize something I marked as critical if your timeline demands it.\n\n2. **This Sprint**: Design the consent flows and data retention policies. These are design decisions that should happen before code. Work with legal if you have that resource.\n\n3. **Before Launch**:\n   - Finalize your data minimization strategy (Path A or Path B for location)\n   - Implement automated data deletion for GPS/heart rate\n   - Test a data subject request (deletion, access) end-to-end\n   - Write your privacy notice and send it through legal review\n\n4. **Ongoing**: Keep the data map updated as the feature evolves. It should be a living document that product, engineering, and legal reference regularly.\n\n---\n\n**Bottom line**: This feature is ambitious and genuinely valuable to users. The privacy risks are real but manageable with deliberate architectural choices. The key is to make those choices now, when you have design flexibility, not later when they become costly retrofits.\n\nI'm happy to dig deeper into any of these areas or help you work through the design of the consent flows or deletion pipeline.\n"}], "grading": {"eval_id": "product-review-fitness-app", "configuration": "with_skill", "expectations": [{"text": "proposes_alternatives", "passed": true, "evidence": "Clearly proposes two concrete paths: Path A (minimize location data using geographic areas/metro tiles) and Path B (keep precise coordinates with architectural controls like TTL and deletion). Both preserve functionality while addressing privacy."}, {"text": "covers_data_lifecycle", "passed": true, "evidence": "Comprehensively addresses collection (Section 1-3), storage (explicitly mentions retention policy in Section 4), sharing (Section 5), and deletion/retention (Section 7 dedicated to deletion & data subject rights). Creates detailed retention table."}, {"text": "identifies_health_data_sensitivity", "passed": true, "evidence": "Section 2 explicitly identifies heart rate as health information, discusses HIPAA applicability, GDPR Article 9 special category status, and discusses discrimination risks. Treats separately from regular data."}, {"text": "conversational_not_checklist", "passed": true, "evidence": "Uses advisory, explanatory tone throughout. Example: 'The biggest privacy challenge I want to talk about first is the default architecture' and 'Right now this looks like a feature that collects maximum data.' Not a bullet-point compliance checklist."}, {"text": "severity_classification", "passed": true, "evidence": "Clearly distinguishes Critical Issues (GPS data, heart rate, workout sharing), High-Priority Issues (retention policy, consent architecture), Medium-Priority Issues (deletion rights, analytics), and Low-Priority Issues (pseudonymization, transparency)."}]}}, {"id": "product-review-fitness-app-without_skill", "prompt": "Review this fitness app feature (workout sharing and location-based partner discovery) from a privacy perspective as a Chief Privacy Officer. Identify critical risks around GPS location tracking, heart rate health data collection, and social graph exposure. Propose concrete alternatives that preserve user privacy while enabling the feature. Address data lifecycle (collection, storage, sharing, deletion), consent architecture, retention policies, and regulatory compliance (GDPR, CCPA). Provide both must-fix and nice-to-have recommendations with clear severity levels.", "eval_id": 1, "outputs": [{"name": "review.md", "type": "text", "content": "# Privacy Review: Fitness App Workout Sharing & Partner Matching Feature\n\n## Executive Summary\n\nThis feature presents **significant privacy risks** across multiple dimensions: location tracking, health data collection, social graph exposure, and third-party data sharing. The combination of persistent GPS tracking, real-time location matching, and intimate health metrics creates a compelling privacy attack surface. Without substantial privacy-by-design controls, this feature poses material risks to user safety, security, and autonomy.\n\n---\n\n## 1. Location Privacy Risks\n\n### 1.1 GPS Tracking During Workouts\n**Risk Level: HIGH**\n\n**Issues:**\n- **Persistent location history**: Storing GPS coordinates from every workout creates a detailed movement pattern database that reveals sensitive information:\n  - Home addresses (derived from workout start/end points)\n  - Workplace locations (if users workout nearby)\n  - Frequented neighborhoods and routes\n  - Daily behavioral patterns and schedules\n  - Travel patterns and vacation destinations\n\n- **Location inference attacks**: Even anonymized workout data can be re-identified by correlating with other datasets or observable patterns\n- **Third-party vulnerability**: GPS data is valuable to advertisers, insurers, law enforcement, and bad actors\n- **Stalking/harassment enablement**: Real-time location data enables harassment, physical stalking, and doxxing\n\n**Specific Concerns for Workout Data:**\n- Workout times often reveal daily routines (early morning joggers, evening gym visits)\n- Popular workout locations are well-known and can identify socioeconomic status and lifestyle\n- Route patterns are highly unique and personally identifiable\n- Female users face elevated stalking/harassment risks\n\n### 1.2 Nearby Workout Partner Matching\n**Risk Level: CRITICAL**\n\n**Issues:**\n- **Real-time location exposure**: Advertising current workout location to \"nearby\" users creates active stalking vectors\n- **Precision varies by geography**: Rural areas with sparse users may enable re-identification of individuals\n- **Radius definition unclear**: How far is \"nearby\"? Radius too large = privacy loss; too small = feature failure\n- **Continuous tracking requirement**: Feature likely requires persistent location polling, not just workout-time tracking\n- **Social mapping**: Partner matching reveals social networks and friend groups, enabling social graph extraction\n- **Inference of relationship status**: Who you workout with (and don't workout with) reveals personal relationships\n\n**Attack scenarios:**\n- Abuser identifies victim's location during specific times\n- Employer monitors employee location and activity patterns\n- Competitor tracks executive movement and availability\n- Marketing firms build detailed behavioral profiles\n- Law enforcement uses location data without warrants\n\n---\n\n## 2. Health Data Privacy Risks\n\n### 2.1 Wearable Heart Rate Data\n**Risk Level: HIGH**\n\n**Issues:**\n- **Sensitive health information**: Heart rate data reveals:\n  - Fitness level and health status\n  - Medication effects and health conditions (abnormal rhythms, arrhythmias)\n  - Stress levels and mental health indicators\n  - Pregnancy (elevated resting heart rate)\n  - Substance use patterns\n\n- **Medical re-identification**: Health metrics are extremely specific identifiers; small datasets can enable re-identification\n- **Longitudinal tracking**: Historical heart rate patterns reveal health trajectory and medical events\n- **Third-party risks**:\n  - Insurance companies could use data to adjust premiums or deny coverage\n  - Employers could screen out applicants with health indicators\n  - Lenders could incorporate fitness/health data into credit decisions\n  - Advertisers could target users with medical conditions\n\n- **Wearable data quality**: Third-party wearable data may be inaccurate; users don't control data accuracy\n- **API security**: Wearable integrations introduce security vulnerabilities and additional data breach vectors\n\n### 2.2 Heart Rate Data Sharing\n**Risk Level: HIGH**\n\n**Issues:**\n- **Sharing assumptions unclear**: Can users see friends' heart rate data? Is it shared in partner matching?\n- **Social pressure**: Users may feel pressured to share health data to maintain social connections\n- **Permanence**: Users may not realize health data shared publicly or to friends remains accessible after deletion\n- **Derivative data**: Other users could analyze shared data to infer health conditions\n\n---\n\n## 3. Data Aggregation & Inference Risks\n\n### 3.1 Combined Risk Profile\n**Risk Level: CRITICAL**\n\nThe combination of GPS + heart rate + workout type + social network creates powerful inference opportunities:\n\n- **Behavioral profiling**: Location + timing + heart rate reveals daily routines, health status, stress patterns\n- **Health screening**: Workout intensity, frequency, and heart rate data enable health screening without consent\n- **Discriminatory targeting**: Combined data enables age, disability, health status, and fitness-level discrimination\n- **Predictive analytics**: Historical data enables prediction of future locations and behaviors\n- **Social engineering**: Combining location and social connections enables targeted social engineering attacks\n\n### 3.2 De-anonymization Risk\n**Risk Level: HIGH**\n\nEven if identifiers are stripped, datasets combining:\n- Unique GPS routes\n- Unique heart rate patterns\n- Workout timing and frequency\n- Social connections\n\n...are highly vulnerable to re-identification through:\n- Crossmatching with other fitness app datasets\n- Correlation with public data (employment records, social media)\n- Temporal analysis (matching with other known locations)\n- Unique behavioral fingerprints\n\n---\n\n## 4. Consent & Control Risks\n\n### 4.1 Informed Consent Challenges\n**Risk Level: HIGH**\n\n**Issues:**\n- **Scope creep**: Users may consent to sharing with friends, not realizing data enables partner matching and location targeting\n- **Opt-in inertia**: Default settings should be privacy-protective; current practice often makes sharing default\n- **Understanding barriers**: Average users don't understand:\n  - Health data sensitivity and inference potential\n  - Location data re-identification risks\n  - How third parties could use the data\n  - Consequences of data breaches\n\n- **Withdrawal difficulty**: Users should easily revoke consent without feature degradation\n- **Granularity failure**: Single on/off switches aren't sufficient; users need granular controls:\n  - Share with specific people only\n  - Share workout type, but not location\n  - Share location, but not heart rate\n  - Temporary sharing (e.g., during single workout)\n\n### 4.2 Power Imbalances\n**Risk Level: MEDIUM-HIGH**\n\n**Issues:**\n- **Social pressure**: Friend requests to share data create implicit pressure to participate\n- **Feature gatekeeping**: If partner matching requires location sharing, users can't opt out without losing feature\n- **Group dynamics**: Users uncomfortable sharing data may feel excluded from group activities\n\n---\n\n## 5. Data Retention & Deletion Risks\n\n### 5.1 Indefinite Retention\n**Risk Level: HIGH**\n\n**Issues:**\n- **Unclear retention policies**: How long is GPS and heart rate data stored?\n- **Derived data persistence**: Even if original data is deleted, derived datasets (aggregations, analytics) may remain\n- **Backup retention**: Data in backups may persist longer than stated retention period\n- **Third-party retention**: Data shared with partners or wearable APIs may have independent retention\n- **Law enforcement preservation**: Service providers may preserve \"deleted\" data when government requests arrive\n\n### 5.2 Deletion Verification\n**Risk Level: MEDIUM**\n\n**Issues:**\n- **No user verification**: Users can't verify data was actually deleted\n- **Audit trail loss**: No transparency into what data remains after deletion\n- **Secondary data**: Partner matching algorithms, aggregated statistics, and inferences may persist\n\n---\n\n## 6. Third-Party & Integration Risks\n\n### 6.1 Wearable Integration\n**Risk Level: HIGH**\n\n**Issues:**\n- **API credential exposure**: Users must provide wearable account access; compromised credentials expose wearable accounts\n- **Scope creep**: Wearable integrations may request excessive permissions\n- **Data sharing chains**: Heart rate data flows through wearable API \u2192 fitness app \u2192 potentially other services\n- **Unclear data flow**: Users don't know if wearable companies see fitness app data or vice versa\n- **Service dependency**: If wearable service shuts down, data loss or unexpected sharing may occur\n\n### 6.2 Location Service Dependencies\n**Risk Level: MEDIUM**\n\n**Issues:**\n- **GPS precision**: App relies on device GPS, which may expose location to OS and other apps\n- **Background location access**: Partner matching may require continuous background location access\n- **Location service providers**: Third-party geolocation/mapping services may collect additional data\n\n### 6.3 Future Data Monetization\n**Risk Level: MEDIUM-HIGH**\n\n**Issues:**\n- **Business model uncertainty**: Will fitness data be monetized in future (sold to insurers, employers, advertisers)?\n- **Ownership ambiguity**: Users may not understand they don't own the data they generate\n- **Acquisition risk**: If company is acquired, data policies may change\n- **Data as currency**: Fitness apps operate in ecosystem where health data has significant commercial value\n\n---\n\n## 7. Regulatory Compliance Risks\n\n### 7.1 GDPR (EU)\n**Risk Level: HIGH**\n\n**Issues:**\n- **Legal basis uncertainty**: What's the lawful basis for processing location and health data?\n  - Consent is only valid if informed, specific, and freely given\n  - Legitimate interest likely insufficient for health data\n- **Data minimization failure**: Collecting location 24/7 during workout violates minimization principle\n- **Pseudonymization inadequate**: GPS routes + heart rate are insufficiently pseudonymous\n- **DPIA required**: Data Protection Impact Assessment must be conducted before deployment\n- **Article 9 restrictions**: Health data has special protections; explicit consent required\n- **Right to erasure**: Users must be able to delete data without service degradation\n\n### 7.2 HIPAA (US Healthcare)\n**Risk Level: MEDIUM**\n\n**Issues:**\n- **Health information scope**: Heart rate data may constitute Protected Health Information (PHI)\n- **Business associate requirements**: If integrated with healthcare providers, strict BAA requirements apply\n- **Minimum necessary**: Collecting and sharing full heart rate history violates minimum necessary principle\n\n### 7.3 State Privacy Laws (CCPA, VCDPA, etc.)\n**Risk Level: MEDIUM-HIGH**\n\n**Issues:**\n- **Location data classification**: Many state laws specifically protect location data\n- **Sensitive data**: Health data classified as sensitive in most state laws\n- **Opt-out requirements**: Some laws require opt-out options for location tracking\n- **Disclosure requirements**: Must disclose data collection, uses, and sharing practices clearly\n\n### 7.4 Sector-Specific Regulations\n**Risk Level: MEDIUM**\n\n**Issues:**\n- **Wearable device regulations**: FDA oversight if health claims are made\n- **Insurance regulations**: If data used for insurance purposes, additional compliance required\n\n---\n\n## 8. Security & Breach Risks\n\n### 8.1 Data Breach Impact\n**Risk Level: CRITICAL**\n\n**Issues:**\n- **High-value target**: Fitness data combining location + health + social network is extremely valuable\n- **Breach consequences**:\n  - Location history exposes past/current residences and routines\n  - Health data enables medical fraud and discrimination\n  - Social connections enable targeted attacks\n  - Reputational damage (health conditions made public)\n\n- **Insider threats**: App employees with access to location + health data pose significant risk\n- **Inadequate security practices**: Many fitness apps have poor security standards\n\n### 8.2 API Security\n**Risk Level: HIGH**\n\n**Issues:**\n- **Wearable API attacks**: Partner matching API that receives location data is attack surface\n- **Injection attacks**: Location-based features vulnerable to geofencing bypasses\n- **Rate limiting**: Absence of rate limiting could enable location data harvesting\n\n---\n\n## 9. Specific Design Failures\n\n### 9.1 \"Nearby\" Feature Design\n**Critical Flaw:** This feature is privacy-harmful by design\n\n**Problems:**\n- **Real-time surveillance**: User is discoverable to strangers while exercising\n- **No benefit justification**: Feature primarily benefits business (user engagement), not users\n- **Inescapable tracking**: Users wanting to share history must accept location exposure\n- **Harassment vector**: Perfect mechanism for stalkers to locate targets\n\n**Alternative approach:**\n- Remove real-time location matching entirely\n- Allow users to post workout summaries without location (e.g., \"Trail run, 8 miles, 152 BPM avg\")\n- Let users optionally share anonymous distance/time achievements\n- Use aggregate/obfuscated data for partner suggestions (not real-time location)\n\n### 9.2 Wearable Integration Design\n**Issue:** No granular control over what health metrics are shared\n\n**Should support:**\n- Share workout type only (no heart rate)\n- Share aggregated stats only (no granular data)\n- Share with specific friends only\n- Temporary sharing (single workout, not history)\n\n### 9.3 Workout History Sharing\n**Issue:** Unclear what \"sharing history\" means\n\n**Must clarify:**\n- Can viewers see individual heart rate data or only summary stats?\n- Can they see specific GPS coordinates or just distance/duration?\n- Can they see timing/timestamps?\n- Can they see this data indefinitely or only temporarily?\n\n---\n\n## 10. Risk Mitigation Recommendations\n\n### 10.1 Redesign for Privacy (Highest Impact)\n\n1. **Eliminate real-time location matching**\n   - Remove the \"nearby\" feature entirely\n   - Replace with opt-in partner matching based on:\n     - Workout type preferences (running, yoga, gym)\n     - Fitness level (beginner, intermediate, advanced)\n     - Available times (no location component)\n\n2. **Location data minimization**\n   - Don't store GPS coordinates at all\n   - Store only: workout duration, distance, average pace, calories\n   - If location must be tracked, delete after workout summary is created\n   - Never enable real-time location visibility\n\n3. **Health data controls**\n   - Make heart rate data strictly optional\n   - Default to sharing only aggregated metrics (avg heart rate, not granular data)\n   - Allow users to share workout without any heart rate data\n   - Never require health data for core app features\n\n4. **Social network separation**\n   - Don't use partner matching data to build social graphs\n   - Don't recommend users based on proximity history\n   - Don't share who works out together with other users\n\n### 10.2 Consent & Control Improvements\n\n1. **Granular permission architecture**\n   ```\n   - Share workout summaries: YES / NO\n   - Include location data: YES / NO\n   - Include heart rate data: YES / NO\n   - Share with: Everyone / Friends / Specific person\n   - Duration: Permanent / 30 days / 7 days / 1 day\n   ```\n\n2. **Informed consent requirements**\n   - Plain-language privacy notice explaining data sensitivity\n   - Concrete examples of privacy risks (health inferences, location exposure)\n   - Explicit consent per feature (not blanket consent)\n   - Annual re-consent to surface ongoing privacy concerns\n\n3. **Easy withdrawal**\n   - One-click opt-out without feature loss\n   - Historical data deletion request (with verification)\n   - Download all personal data before deletion\n\n### 10.3 Data Retention & Security\n\n1. **Minimum retention policy**\n   - GPS coordinates: Delete immediately after workout summary\n   - Raw heart rate data: Delete after 30 days\n   - Aggregated statistics: Delete after 2 years\n   - Never retain deleted data in backups beyond 90 days\n\n2. **Encryption standards**\n   - End-to-end encryption for health data shared with friends\n   - Encrypt all data at rest (AES-256 minimum)\n   - Encrypt all data in transit (TLS 1.3 minimum)\n   - Separately encrypt location and heart rate data\n\n3. **Access controls**\n   - Strict role-based access for employees\n   - Audit logging for all data access\n   - No bulk data export permissions\n   - Automated alerts for unusual access patterns\n\n4. **Wearable integration security**\n   - Store wearable API credentials separately from user database\n   - Revoke wearable access if account compromised\n   - Regular security audits of wearable API calls\n   - No persistent storage of wearable tokens\n\n### 10.4 Regulatory Compliance\n\n1. **GDPR compliance**\n   - Conduct Data Protection Impact Assessment (DPIA) before launch\n   - Document legal basis for each data category\n   - Implement data minimization by design\n   - Enable GDPR rights (access, erasure, portability)\n   - Establish Data Processing Agreement with any third parties\n\n2. **CCPA/VCDPA compliance**\n   - Clear privacy policy disclosing all data uses\n   - Easy opt-out mechanism for location sharing\n   - \"Do not sell or share\" honor request process\n   - Annual privacy audits\n\n3. **Transparency**\n   - Publish transparency reports on data requests\n   - Disclose all third parties with data access\n   - Annual privacy impact reports\n\n---\n\n## 11. Questions for Product Team\n\nBefore proceeding, clarify:\n\n1. **Location data**\n   - Will GPS coordinates be retained after workout?\n   - How far is \"nearby\" in partner matching?\n   - Will real-time location be visible to other users?\n\n2. **Heart rate data**\n   - Is heart rate data optional or required?\n   - What granularity is shared (raw points vs. aggregated)?\n   - Can users delete heart rate history?\n\n3. **Data sharing scope**\n   - Who can see workout history (friends, everyone, specific people)?\n   - Can data be shared indefinitely or only temporarily?\n   - Can viewers download or export shared data?\n\n4. **Third-party data**\n   - Will location/health data be monetized?\n   - Will data be shared with analytics vendors?\n   - Will wearable companies receive fitness app data?\n\n5. **User control**\n   - Can users turn off partner matching without losing other features?\n   - Can users delete all location history?\n   - Can users verify deletion was successful?\n\n6. **Legal basis**\n   - What is the lawful basis for location tracking?\n   - Has DPIA been conducted?\n   - Has legal review been completed for GDPR, CCPA compliance?\n\n---\n\n## 12. Conclusion\n\nThis feature **should not be deployed in current form**. The combination of persistent GPS tracking, real-time location matching, and health data collection creates unacceptable privacy risks:\n\n- **Stalking/harassment enablement** through real-time location matching\n- **Health discrimination potential** through wearable data sharing\n- **De-anonymization risk** through unique behavioral fingerprints\n- **Regulatory violation risk** under GDPR, CCPA, and state laws\n- **User manipulation risk** through social pressure to share sensitive data\n\n**Recommended path forward:**\n\n1. **Eliminate real-time location matching** (nearby feature)\n2. **Make all health data optional** with granular sharing controls\n3. **Minimize location data retention** (delete after workout)\n4. **Implement GDPR/CCPA-compliant consent** with granular controls\n5. **Conduct security and legal review** before any deployment\n6. **Publish transparent privacy policy** with concrete examples\n\nA redesigned version focusing on workout summaries, optional friend sharing, and aggregate metrics could achieve business goals without the privacy harms of real-time location tracking and health data exposure.\n\n"}], "grading": {"eval_id": "product-review-fitness-app", "configuration": "without_skill", "expectations": [{"text": "proposes_alternatives", "passed": false, "evidence": "Review proposes removing the real-time location matching feature entirely and replacing with aggregate/obfuscated data, but does not propose concrete alternative approaches that would preserve the feature with minimal data (e.g., geohashing, location bucketing). Does not provide Path A/Path B decision framework."}, {"text": "covers_data_lifecycle", "passed": true, "evidence": "Addresses collection (location, health data), storage (indefinite retention issue in Section 5.1), sharing (multiple sections on social graph, third-party risks), and deletion (Section 5.2 discusses deletion verification and lack thereof)."}, {"text": "identifies_health_data_sensitivity", "passed": true, "evidence": "Section 2.1 specifically identifies heart rate as sensitive health information, mentions HIPAA, insurance/employer discrimination risks, and treats health data as special category requiring elevated protections."}, {"text": "conversational_not_checklist", "passed": true, "evidence": "Uses narrative structure with detailed scenarios and implications. Example: 'Workout times often reveal daily routines' and 'Female users face elevated stalking/harassment risks.' Does not use checklist format."}, {"text": "severity_classification", "passed": true, "evidence": "Uses 'Risk Level' classifications (HIGH, CRITICAL, MEDIUM-HIGH) consistently throughout. Distinguishes between critical design flaws (real-time location matching) and high-priority recommendations (granular controls)."}]}}, {"id": "code-review-node-api-with_skill", "prompt": "Review this Node.js user API code from a privacy perspective as a Chief Privacy Officer. Identify concrete privacy violations in the code including: PII captured in logs, soft-delete without cascading deletion, over-returning data fields, health data handling without consent, and missing access controls. For each issue, provide specific line references, explain the regulatory impact, and suggest concrete code fixes. Focus on data minimization, consent, deletion compliance, and access control.", "eval_id": 2, "outputs": [{"name": "review.md", "type": "text", "content": "# Privacy Code Review: Node.js User API\n## Chief Privacy Officer Assessment\n\n---\n\n## Executive Summary\n\nThis API has **five critical to high-severity privacy issues** that need to be addressed before shipping. The biggest concern is that you're collecting health data (medications, health goals) without demonstrating a lawful basis for processing it, and you're capturing personally identifiable information in logs and analytics without the user's knowledge.\n\nThe good news: these are all fixable with relatively straightforward changes. The harder news: they reveal a deeper issue \u2014 there's no privacy-aware architecture in place yet. You need to build consent validation, data minimization, and access controls into these endpoints.\n\n---\n\n## Critical Issues\n\n### 1. **Health Data Collection Without Clear Consent/Lawful Basis** \u26d4 CRITICAL\n\n**What I'm seeing:**\nThe `/api/users/:id/preferences` endpoint accepts `healthGoals` and `medications` fields (line 31) with no apparent consent check, and logs the full payload including this sensitive data (line 36).\n\n**Why it matters:**\nHealth data is a \"special category\" under GDPR (Article 9) and is highly sensitive under HIPAA and other health-specific regulations. Collecting it requires an explicit lawful basis \u2014 typically explicit user consent. Right now, the code treats health data the same way it treats `theme` and `language`, which is a regulatory risk.\n\nIf someone audits this endpoint and finds you're storing medication lists without demonstrating informed, freely-given consent, that's a supervisory authority complaint waiting to happen. Beyond regulation: if a journalist finds out you're collecting medications and health goals, the headline writes itself.\n\n**What needs to happen:**\n- Separate the health data fields (`medications`, `healthGoals`) into a separate endpoint that requires explicit consent validation before accepting the data\n- Don't even allow these fields in the preferences endpoint \u2014 return a 400 error if they're submitted\n- When the user consents to health data collection, log only that consent was given, not the actual health data\n- Ensure deletion of health data is not just a soft-delete flag \u2014 you need to actively purge it\n\n**Suggested approach:**\n```\nPOST /api/users/:id/health-consent\n{\n  \"consentGiven\": true,\n  \"consentTimestamp\": \"2026-03-20T...\"\n}\n```\n\nThen separately, after consent is confirmed:\n```\nPUT /api/users/:id/health-data\n{\n  \"medications\": [...],\n  \"healthGoals\": [...]\n}\n```\n\nThis forces your frontend to have an actual consent flow, and it makes it clear in the code that health data processing requires special handling.\n\n---\n\n### 2. **PII Captured in Console Logs Without Retention Policy** \u26d4 CRITICAL\n\n**What I'm seeing:**\n- Line 10: `console.log(\\`User profile accessed: ${JSON.stringify(user)}\\`)` \u2014 the entire user object is logged, which includes email, potentially phone number, and any other PII in the user record\n- Line 36: `console.log(\\`Preferences updated for user ${req.params.id}: ${JSON.stringify(req.body)}\\`)` \u2014 again, the full request body including health data is logged\n\n**Why it matters:**\nLogs get shipped to log aggregation services. Those services are typically accessible to ops teams, support teams, and sometimes contractors. If you're storing the full user object (email, name, phone, IP address) in logs that persist for 90 days or more, you've created a secondary PII storage system with broader access than the primary database.\n\nWhen a user requests their data under GDPR or CCPA, you have to tell them \"we found your email in logs from 47 different login sessions.\" Now you're either:\n1. Manually deleting log entries (unsustainable), or\n2. Over-retaining logs to avoid missing data, or\n3. Telling users you don't actually know all the places their data went\n\n**What needs to happen:**\n- Remove user objects from logs entirely. Log only the user ID and the event type\n- If you need email for debugging, mask it: `j***@example.com`\n- Set a short retention period for these logs (7-14 days is reasonable for API logs)\n- Document this retention policy and ensure your log storage infrastructure actually enforces it\n\n**Suggested fix:**\n```javascript\n// Instead of:\nconsole.log(`User profile accessed: ${JSON.stringify(user)}`);\n\n// Do this:\nconsole.log(`User profile accessed: userId=${user.id}`);\n\n// For the preferences endpoint:\nconsole.log(`Preferences updated for user ${req.params.id}: theme, language, marketing_opt_in`);\n// Never log the actual values of health_goals or medications\n```\n\n---\n\n### 3. **Unnecessary Analytics Data Collection (IP, User-Agent, Full Preferences)** \u26d4 HIGH\n\n**What I'm seeing:**\n- Line 11-16: The `profile_view` event captures `viewerIp` and `userAgent` along with email, even though you probably only need to know that a profile was viewed\n- Line 37-40: The `preferences_updated` event logs `allPreferences: req.body`, which includes health data\n\n**Why it matters:**\nAnalytics events are often shipped to third-party services (Segment, Amplitude, Mixpanel, etc.). Even if you think this is \"internal,\" it's still a form of data sharing. You're capturing more data than you need:\n- IP address is quasi-identifier that enables tracking across sessions\n- User-Agent can reveal device details\n- Full preferences including health data gives you a detailed behavioral profile\n\nThe problem: you've laced health data into a general analytics pipeline that wasn't designed to handle sensitive data. Health data shouldn't go to your standard analytics tool at all.\n\n**What needs to happen:**\n- For `profile_view`: log only `userId` and `action: \"view_profile\"`. You don't need the viewer's IP or user-agent for this metric\n- For `preferences_updated`: log only `userId` and which preference categories were updated (`theme`, `language`, `marketing`). Never send health data to analytics\n- If you want to track health-related engagement later, build a separate, privacy-aware pipeline with appropriate retention and deletion mechanics\n\n**Suggested fix:**\n```javascript\n// Instead of:\nanalytics.track('profile_view', {\n  viewedUserId: user.id,\n  viewerIp: req.ip,\n  userEmail: user.email,\n  userAgent: req.headers['user-agent']\n});\n\n// Do this:\nanalytics.track('profile_view', {\n  userId: user.id,\n  action: 'view_profile'\n});\n\n// And for preferences:\nconst changedCategories = ['theme', 'language']; // never include health data\nif (healthGoals) changedCategories.push('health_data');\nanalytics.track('preferences_updated', {\n  userId: req.params.id,\n  changedCategories: changedCategories\n});\n```\n\n---\n\n### 4. **No Access Control on Admin Endpoint (Line 24-26)** \u26d4 HIGH\n\n**What I'm seeing:**\nThe `/api/admin/users` endpoint (line 24) has no authentication or authorization check. Anyone who can reach this endpoint gets a list of every user in the system with all their data.\n\n**Why it matters:**\nThis is both a privacy and security issue. From a privacy angle: if this endpoint is accessible to anyone (even authenticated users who aren't admins), you've created a data exposure. One confused frontend developer copies the wrong API call into their component, and suddenly every user's profile is being streamed to the client.\n\nFrom a regulatory angle: GDPR requires that you can demonstrate access controls over personal data. If you can't show that this endpoint is restricted to authorized admins, and access attempts are logged, you've failed the access control requirement.\n\n**What needs to happen:**\n- Add authentication check (must be logged-in user)\n- Add authorization check (must be admin role)\n- Log all access to this endpoint with user ID, timestamp, and number of records accessed\n- Consider if you even need to return ALL fields for all users \u2014 maybe admin tools only need `id`, `email`, `created_at`, and `status`\n\n**Suggested fix:**\n```javascript\nrouter.get('/api/admin/users', async (req, res) => {\n  // Check auth and admin role\n  if (!req.user || req.user.role !== 'admin') {\n    res.status(403).json({ error: 'Unauthorized' });\n    return;\n  }\n\n  // Log the access attempt\n  logger.info(`Admin user ${req.user.id} accessed user list`);\n\n  // Return only necessary fields\n  const users = await db.query(\n    'SELECT id, email, created_at, status FROM users'\n  );\n  res.json(users);\n});\n```\n\n---\n\n### 5. **Soft-Delete Without Cascading Deletion** \u26d4 HIGH\n\n**What I'm seeing:**\nLine 46: The delete endpoint only sets `deleted = true` on the users table. But the user's preferences, analytics events, and any other related data remain in the database and are still associated with the user ID.\n\n**Why it matters:**\nWhen a user requests deletion under GDPR or CCPA, you have 30 days (GDPR) to actually delete their data. A soft-delete isn't deletion \u2014 it's just hiding the record. If you're not cascading the deletion to:\n- `user_preferences` table\n- Analytics/audit logs that reference this user\n- Any messages, files, activity records associated with this user\n\n...then you're not actually complying with deletion requests. You're just hiding the primary record.\n\nMore practically: if a user's email gets recycled (someone new signs up with the old email), the old user's preferences, health data, and activity history might still be attached to that email address in your system.\n\n**What needs to happen:**\n- Implement a proper deletion cascade: when a user is deleted, their preferences, activity records, and any related PII must actually be removed or anonymized\n- Document which tables contain user data and define a deletion order (must handle foreign keys)\n- Consider whether you actually need to permanently delete everything or if you can pseudonymize older data (hash the user ID, delete email, etc.)\n- Test the deletion pipeline end-to-end \u2014 mark it as part of your pre-launch checklist\n\n**Suggested approach:**\n```javascript\nrouter.delete('/api/users/:id', async (req, res) => {\n  try {\n    // Start transaction to ensure all-or-nothing deletion\n    const client = await db.getClient();\n    await client.query('BEGIN');\n\n    // Delete related data first (cascade)\n    await client.query('DELETE FROM user_preferences WHERE user_id = $1', [req.params.id]);\n    await client.query('DELETE FROM user_activity WHERE user_id = $1', [req.params.id]);\n\n    // Delete primary record\n    await client.query('DELETE FROM users WHERE id = $1', [req.params.id]);\n\n    await client.query('COMMIT');\n\n    logger.info(`User ${req.params.id} and associated data deleted`);\n    res.json({ message: 'Account and associated data deleted' });\n  } catch (err) {\n    await client.query('ROLLBACK');\n    res.status(500).json({ error: 'Deletion failed' });\n  }\n});\n```\n\n---\n\n## Medium-Priority Issues\n\n### 6. **No Verification That Requesting User Can Access Their Own Profile** (Medium)\n\n**What I'm seeing:**\nLine 7-21: The `GET /api/users/:id` endpoint returns user data based only on the ID in the URL. There's no check that `req.user.id === req.params.id`.\n\n**Why it matters:**\nThis is an \"IDOR for privacy\" issue. If I'm user 42, nothing stops me from requesting `GET /api/users/43` and reading user 43's full profile (including email, potentially phone number, any metadata in the user object).\n\nSecurity teams call this an IDOR vulnerability. Privacy teams call it unauthorized access to personal data. Either way, it needs fixing.\n\n**What needs to happen:**\nAdd a check that users can only access their own profile (admins can access anyone's):\n```javascript\nif (req.user.id !== parseInt(req.params.id) && req.user.role !== 'admin') {\n  res.status(403).json({ error: 'Unauthorized' });\n  return;\n}\n```\n\n---\n\n### 7. **Data Export Endpoint Returns Everything Without Filtering** (Medium)\n\n**What I'm seeing:**\nLine 52-55: The `/api/users/:id/export` endpoint (presumably for GDPR/CCPA subject data requests) just returns `SELECT *` from the users table.\n\n**Why it matters:**\nTwo issues here:\n1. Same access control problem as #6 \u2014 no verification that the requesting user owns this data\n2. More subtly: if your users table has internal fields (like `stripe_customer_id`, `abuse_score`, internal notes columns), you're exposing infrastructure details to users. The GDPR right to access is meant to let users see *data about them*, not your internal housekeeping fields\n\n**What needs to happen:**\n- Add access control: users can only access their own export unless they're admins\n- Define a whitelist of fields that should be included in data exports. Think of this as \"what would we show a user if they asked, 'what do you have on me?'\"\n- Collect data from all relevant tables (preferences, activity history, etc.), not just the users table\n- Document and test this export pipeline \u2014 it's often the first place data protection audits focus\n\n**Suggested approach:**\n```javascript\nrouter.get('/api/users/:id/export', async (req, res) => {\n  // Verify ownership\n  if (req.user.id !== parseInt(req.params.id) && req.user.role !== 'admin') {\n    res.status(403).json({ error: 'Unauthorized' });\n    return;\n  }\n\n  const userId = req.params.id;\n\n  // Gather data from all sources\n  const userData = await db.query(\n    'SELECT id, email, created_at, name FROM users WHERE id = $1',\n    [userId]\n  );\n\n  const preferences = await db.query(\n    'SELECT * FROM user_preferences WHERE user_id = $1',\n    [userId]\n  );\n\n  const activity = await db.query(\n    'SELECT timestamp, action FROM user_activity WHERE user_id = $1',\n    [userId]\n  );\n\n  res.json({\n    profile: userData,\n    preferences: preferences,\n    activity: activity\n  });\n});\n```\n\n---\n\n## Low-Priority Observations\n\n### 8. **Error Responses Leak Implementation Details** (Low)\n\n**What I'm seeing:**\nLine 19: `res.status(500).json({ error: err.message, stack: err.stack })` \u2014 error stack traces are returned to clients.\n\n**Why it matters:**\nThis is mostly a security concern, but from a privacy angle: stack traces sometimes leak implementation details that could reveal what data you're processing (database column names, internal service names, etc.). It's not a major privacy issue, but it's sloppy.\n\n**Quick fix:**\n```javascript\ncatch (err) {\n  logger.error('Profile access error', { userId: req.params.id, error: err });\n  res.status(500).json({ error: 'Unable to retrieve profile' });\n}\n```\n\n---\n\n## What You're Doing Well\n\nI want to flag one thing you got right: **you're using parameterized queries** (`$1` placeholders) instead of string concatenation. That's good hygiene and it prevents SQL injection. Keep that up.\n\n---\n\n## Before You Ship: The Checklist\n\n- [ ] **Separate health data handling.** Move `medications` and `healthGoals` into a separate endpoint that requires explicit consent\n- [ ] **Stop logging PII.** Remove full objects from logs; log only IDs and event types\n- [ ] **Clean up analytics.** Remove IP, user-agent, and health data from analytics events; send only necessary identifiers and actions\n- [ ] **Add access controls.** Authenticate and authorize the admin endpoint; verify user ownership on profile and export endpoints\n- [ ] **Implement cascading deletion.** Make sure delete actually purges related data or pseudonymizes it\n- [ ] **Define data retention policies.** Especially for logs, audit trails, and analytics. Document and enforce them\n- [ ] **Test the deletion pipeline.** Make it part of pre-launch testing that users can be deleted and data actually goes away\n- [ ] **Review what fields are actually in the users table.** Strip internal/infrastructure fields from API responses\n\n---\n\n## What Comes Next\n\nOnce you fix these issues, the deeper conversation is about privacy architecture:\n\n1. **Where's the consent system?** You're collecting optional data (marketing opt-in, health data) but there's no code here that validates consent was obtained before processing\n2. **Where are the data retention policies?** You need to decide: how long do you keep activity logs? User preferences? Analytics? And enforce those with automated deletion\n3. **How will you handle data subject requests at scale?** Right now if you got 100 GDPR deletion requests, you'd handle them manually. You need automated pipelines\n\nPrivacy isn't a checklist \u2014 it's a system. These code-level fixes close the biggest gaps, but you'll need to think about the bigger picture before you're truly privacy-ready.\n\nHappy to talk through any of this. The goal is to ship something great that users can trust.\n\n---\n\n**Review completed:** 2026-03-20\n**Reviewed by:** Chief Privacy Officer\n**Status:** Do not ship in current form; critical issues require remediation\n"}], "grading": {"eval_id": "code-review-node-api", "configuration": "with_skill", "expectations": [{"text": "identifies_pii_in_logs", "passed": true, "evidence": "Section 2 (Critical Issues) explicitly identifies lines 10 and 36: 'console.log statements that capture full user objects including PII.' Explains the exposure risk and provides exact code fixes showing how to log only user ID instead of full objects."}, {"text": "flags_soft_delete", "passed": true, "evidence": "Section 5 (Critical Issues) explicitly flags line 46: 'The delete endpoint only sets deleted = true on the users table' without cascading deletion. Notes preferences, analytics, and related data remain, violating deletion requests."}, {"text": "flags_over_returning_data", "passed": true, "evidence": "Section 3 (Critical Issues) identifies lines 11-16 and 37-40 capturing unnecessary analytics data including IP address, user-agent, and full preferences. Section 7 (Medium Issues) discusses SELECT * returning internal/infrastructure fields not meant for API responses."}, {"text": "suggests_concrete_code_fixes", "passed": true, "evidence": "Provides concrete code snippets for: (1) stopping PII logging (lines 75-85 with before/after), (2) fixing analytics (lines 109-131), (3) separating health data with endpoint example (lines 33-48), (4) cascading deletion with transaction example (lines 196-218)."}, {"text": "flags_health_data_in_preferences", "passed": true, "evidence": "Section 1 (Critical Issues) specifically identifies line 31 where the preferences endpoint accepts healthGoals and medications. Notes this is special category data under GDPR Article 9 requiring explicit consent and proposes separate endpoint architecture."}]}}, {"id": "code-review-node-api-without_skill", "prompt": "Review this Node.js user API code from a privacy perspective as a Chief Privacy Officer. Identify concrete privacy violations in the code including: PII captured in logs, soft-delete without cascading deletion, over-returning data fields, health data handling without consent, and missing access controls. For each issue, provide specific line references, explain the regulatory impact, and suggest concrete code fixes. Focus on data minimization, consent, deletion compliance, and access control.", "eval_id": 2, "outputs": [{"name": "review.md", "type": "text", "content": "# Node.js API Privacy Review: user-api.js\n\n## Executive Summary\nThis API code has **critical privacy and security vulnerabilities** that must be addressed before shipping. The code violates multiple privacy principles including unauthorized data logging, inadequate access control, uncontrolled data exposure, and lack of authentication/authorization checks.\n\n---\n\n## Critical Issues\n\n### 1. **No Authentication/Authorization Checks** \u26a0\ufe0f CRITICAL\n**Severity:** CRITICAL\n**Location:** All endpoints (lines 7, 24, 30, 45, 52)\n\n**Issue:** None of the endpoints validate that the requesting user has permission to access the data. Any user can:\n- View any other user's profile (`GET /api/users/:id`)\n- Access admin endpoints without credentials (`GET /api/admin/users`)\n- Update any user's preferences (`PUT /api/users/:id/preferences`)\n- Delete any user account (`DELETE /api/users/:id`)\n- Export any user's data (`GET /api/users/:id/export`)\n\n**Privacy Impact:** Complete unauthorized access to all user data.\n\n**Remediation:**\n```javascript\n// Add middleware to verify authentication and authorization\nconst authenticateUser = require('../middleware/authenticate');\nconst authorizeUser = (req, res, next) => {\n  if (req.user.id !== req.params.id && req.user.role !== 'admin') {\n    return res.status(403).json({ error: 'Unauthorized' });\n  }\n  next();\n};\n\nrouter.get('/api/users/:id', authenticateUser, authorizeUser, async (req, res) => {\n  // ... endpoint logic\n});\n```\n\n---\n\n### 2. **Sensitive Data in Console Logs** \u26a0\ufe0f CRITICAL\n**Severity:** CRITICAL\n**Location:** Lines 10, 36, 47\n\n**Issues:**\n- Line 10: Entire user object logged to console, potentially including passwords, emails, and other PII\n- Line 36: Full health data and medication information logged (extremely sensitive)\n- Line 47: User ID logged without redaction\n\n**Privacy Impact:** Logs are often shipped to log aggregation services (CloudWatch, Splunk, DataDog, etc.), exposing PII to broader teams and potentially to the internet.\n\n**Remediation:**\n- Remove all `console.log()` statements or use structured logging with field redaction\n- Never log full objects containing user data\n- If logging is necessary, redact sensitive fields:\n```javascript\nconst sanitizedUser = { id: user.id, timestamp: new Date() };\nlogger.info('User accessed profile', { userId: user.id });\n```\n\n---\n\n### 3. **Sensitive Data in Analytics Events** \u26a0\ufe0f CRITICAL\n**Severity:** CRITICAL\n**Location:** Lines 11-16, 37-40\n\n**Issues:**\n- Line 14: `userEmail` sent to analytics (PII)\n- Line 15: `userAgent` sent (can fingerprint users)\n- Line 13: `viewerIp` sent (PII)\n- Line 39: **All user preferences including sensitive health data** sent to analytics (critical health information exposed)\n\n**Privacy Impact:** Analytics platforms often have broader access and retention policies. Health information, email addresses, and IP data are being sent to third parties without consent verification.\n\n**Remediation:**\n```javascript\n// Only track non-sensitive metrics\nanalytics.track('profile_view', {\n  userId: user.id,\n  // Do NOT include: email, IP, health data, medications\n});\n\n// For health data especially, this violates HIPAA/privacy regulations\nanalytics.track('preferences_updated', {\n  userId: req.params.id,\n  // Do NOT include: allPreferences, healthGoals, medications\n});\n```\n\n---\n\n### 4. **No Consent/Opt-in Verification** \u26a0\ufe0f HIGH\n**Severity:** HIGH\n**Location:** Lines 11-16, 37-40 (analytics tracking)\n\n**Issue:** Analytics tracking happens without verifying user consent. GDPR, CCPA, and other regulations require explicit opt-in before tracking user behavior and collecting analytics data.\n\n**Privacy Impact:** Regulatory violations (GDPR Article 7, CCPA \u00a71798.100).\n\n**Remediation:**\n```javascript\nif (user.analyticsConsent === true) {\n  analytics.track('profile_view', { /* non-sensitive data */ });\n}\n```\n\n---\n\n### 5. **Error Messages Expose Internal Details** \u26a0\ufe0f HIGH\n**Severity:** HIGH\n**Location:** Line 19\n\n**Issue:** Error stack traces and messages are returned to the client. This exposes:\n- Database details and query structure\n- File paths and internal architecture\n- Potential exploit vectors\n\n**Privacy Impact:** Information disclosure attack vector.\n\n**Remediation:**\n```javascript\ncatch (err) {\n  logger.error('Database error', { error: err.message }); // Log internally\n  res.status(500).json({ error: 'An error occurred' }); // Generic response\n}\n```\n\n---\n\n### 6. **Unfiltered `SELECT *` Queries** \u26a0\ufe0f MEDIUM\n**Severity:** MEDIUM\n**Location:** Lines 9, 25, 53\n\n**Issue:** Selecting all fields exposes data that shouldn't be returned:\n- Line 9: `SELECT * FROM users` may include internal fields, password hashes, or other sensitive metadata\n- Line 25: Admin endpoint returns ALL user data with no filtering\n- Line 53: Export endpoint returns unfiltered user data\n\n**Privacy Impact:** Over-disclosure of user information.\n\n**Remediation:**\n```javascript\n// Only select necessary fields\nconst user = await db.query(\n  'SELECT id, name, email, profile_image FROM users WHERE id = $1',\n  [req.params.id]\n);\n\n// For admin, consider what's actually needed\nconst users = await db.query(\n  'SELECT id, email, created_at FROM users WHERE deleted = false'\n);\n```\n\n---\n\n### 7. **No Rate Limiting** \u26a0\ufe0f MEDIUM\n**Severity:** MEDIUM\n**Location:** All endpoints\n\n**Issue:** Endpoints lack rate limiting, allowing attackers to:\n- Enumerate all users by iterating through IDs\n- Perform brute-force attacks\n- Scrape user data at scale\n\n**Privacy Impact:** Facilitates unauthorized data harvesting.\n\n**Remediation:**\n```javascript\nconst rateLimit = require('express-rate-limit');\n\nconst limiter = rateLimit({\n  windowMs: 15 * 60 * 1000, // 15 minutes\n  max: 100 // limit each IP to 100 requests per windowMs\n});\n\nrouter.get('/api/users/:id', limiter, authenticateUser, /* ... */);\n```\n\n---\n\n### 8. **No Input Validation** \u26a0\ufe0f MEDIUM\n**Severity:** MEDIUM\n**Location:** Line 31 (preferences endpoint)\n\n**Issue:** User input is accepted without validation or sanitization. While the query uses parameterized statements (good), there's no validation of:\n- Data types (is `marketingOptIn` a boolean?)\n- Field length limits\n- Enum constraints for health data\n\n**Privacy Impact:** Allows injection of invalid/malicious data into sensitive fields.\n\n**Remediation:**\n```javascript\nconst { body, validationResult } = require('express-validator');\n\nrouter.put('/api/users/:id/preferences', [\n  body('theme').isIn(['light', 'dark']),\n  body('language').isISO6391(),\n  body('marketingOptIn').isBoolean(),\n  body('healthGoals').optional().isArray(),\n  body('medications').optional().isArray()\n], async (req, res) => {\n  const errors = validationResult(req);\n  if (!errors.isEmpty()) {\n    return res.status(400).json({ errors: errors.array() });\n  }\n  // ... proceed with update\n});\n```\n\n---\n\n### 9. **Soft Delete Without Data Retention Policy** \u26a0\ufe0f MEDIUM\n**Severity:** MEDIUM\n**Location:** Line 46\n\n**Issue:** Account deletion uses soft delete (setting a flag) without:\n- Purging PII after retention period\n- Notifying user of deletion\n- Verifying deletion request authenticity\n- No confirmation/grace period\n\n**Privacy Impact:** User data persists indefinitely; violates right-to-be-forgotten regulations (GDPR Article 17).\n\n**Remediation:**\n```javascript\nrouter.delete('/api/users/:id', authenticateUser, authorizeUser, async (req, res) => {\n  // Verify deletion request (e.g., confirm password)\n  // Schedule hard delete after 30-day retention period\n  await db.query(\n    'UPDATE users SET deleted = true, deleted_at = NOW() WHERE id = $1',\n    [req.params.id]\n  );\n\n  // Schedule background job to hard delete after retention period\n  scheduleHardDelete(req.params.id, '30 days');\n\n  res.json({ message: 'Account scheduled for deletion' });\n});\n```\n\n---\n\n### 10. **Export Endpoint Missing Verification** \u26a0\ufe0f MEDIUM\n**Severity:** MEDIUM\n**Location:** Line 52-54\n\n**Issue:** GDPR/CCPA export endpoint:\n- Has no authentication check\n- Requires no verification of identity\n- Could be abused to mass-extract user data\n- No audit trail/logging of exports\n- Returns data in raw format without proper controls\n\n**Privacy Impact:** Violates data access controls and accountability requirements.\n\n**Remediation:**\n```javascript\nrouter.get('/api/users/:id/export', authenticateUser, authorizeUser, async (req, res) => {\n  // Log the export request\n  auditLog.record({\n    action: 'data_export',\n    userId: req.params.id,\n    timestamp: new Date(),\n    ip: req.ip\n  });\n\n  // Return data in compliant format (JSON with clear labeling)\n  const user = await db.query('SELECT id, email, profile_data FROM users WHERE id = $1', [req.params.id]);\n\n  res.setHeader('Content-Disposition', 'attachment; filename=\"user-data.json\"');\n  res.json({\n    exportedAt: new Date(),\n    data: user\n  });\n});\n```\n\n---\n\n### 11. **Admin Endpoint Completely Unprotected** \u26a0\ufe0f CRITICAL\n**Severity:** CRITICAL\n**Location:** Lines 24-26\n\n**Issue:** The admin endpoint has:\n- No authentication requirement\n- No authorization check\n- Returns all user data from entire database\n- No audit logging\n\n**Privacy Impact:** Exposes all user data to unauthorized access.\n\n**Remediation:**\n```javascript\nrouter.get('/api/admin/users',\n  authenticateUser,\n  requireRole('admin'),\n  auditLog,\n  async (req, res) => {\n    const users = await db.query(\n      'SELECT id, email, created_at FROM users WHERE deleted = false'\n    );\n    res.json(users);\n  }\n);\n```\n\n---\n\n## Privacy Regulations Violations\n\nBased on this code, the application likely violates:\n\n1. **GDPR (EU)** - Articles 5, 6, 7, 17, 32, 33\n   - No consent mechanism for analytics\n   - No access controls\n   - Data not deleted on request\n   - Insufficient security\n\n2. **CCPA (California)** - \u00a71798.100, \u00a71798.115\n   - No mechanism for data access verification\n   - No deletion timeline\n   - Consumer rights not respected\n\n3. **HIPAA (US)** - If handling health data\n   - Health information (medications, health goals) exposed via analytics\n   - No access controls\n   - No audit logging\n\n4. **Other regulations** - LGPD (Brazil), PIPEDA (Canada), etc.\n\n---\n\n## Recommendations (Priority Order)\n\n### Immediate (Before Shipping)\n1. **Add authentication & authorization** to all endpoints\n2. **Remove all PII from logs and analytics**\n3. **Protect the admin endpoint**\n4. **Remove sensitive data from responses**\n5. **Add input validation**\n6. **Change error responses** to generic messages\n\n### Short-term (First Release)\n1. Add rate limiting\n2. Implement proper consent tracking\n3. Add audit logging for sensitive operations\n4. Implement GDPR/CCPA compliance features (export, delete, opt-out)\n\n### Medium-term\n1. Implement data retention policies\n2. Add encryption for data in transit and at rest\n3. Implement fine-grained access controls\n4. Add monitoring and alerting for suspicious access patterns\n\n---\n\n## Summary Table\n\n| Issue | Severity | Type | Location |\n|-------|----------|------|----------|\n| No authentication/authorization | CRITICAL | Security/Privacy | All endpoints |\n| Sensitive data in logs | CRITICAL | Privacy | Lines 10, 36, 47 |\n| Sensitive data in analytics | CRITICAL | Privacy | Lines 11-16, 37-40 |\n| Unprotected admin endpoint | CRITICAL | Security | Lines 24-26 |\n| No consent verification | HIGH | Compliance | Lines 11-16, 37-40 |\n| Error message disclosure | HIGH | Security | Line 19 |\n| Unfiltered SELECT queries | MEDIUM | Privacy | Lines 9, 25, 53 |\n| No rate limiting | MEDIUM | Security | All endpoints |\n| No input validation | MEDIUM | Security | Line 31 |\n| Soft delete without retention policy | MEDIUM | Compliance | Line 46 |\n| Export endpoint unverified | MEDIUM | Compliance | Lines 52-54 |\n\n---\n\n## Conclusion\n\n**DO NOT SHIP** this code without addressing at minimum all CRITICAL and HIGH severity issues. The current implementation has fundamental security and privacy flaws that expose user data without protection, violate multiple privacy regulations, and create significant legal liability.\n\nA complete security and privacy audit is strongly recommended before production deployment.\n"}], "grading": {"eval_id": "code-review-node-api", "configuration": "without_skill", "expectations": [{"text": "identifies_pii_in_logs", "passed": true, "evidence": "Section 2 (Critical) identifies lines 10, 36, 47 logging full user objects and health data. Explains exposure through log aggregation services and provides fix showing logged identifiers should be masked/limited."}, {"text": "flags_soft_delete", "passed": true, "evidence": "Section 9 (Medium) flags line 46 soft delete without cascading deletion. Notes user data persists indefinitely and violates right-to-be-forgotten (GDPR Article 17). Suggests scheduling hard delete after retention period."}, {"text": "flags_over_returning_data", "passed": true, "evidence": "Section 6 (Medium) identifies unfiltered SELECT * queries on lines 9, 25, 53 that return internal fields and infrastructure details. Notes admin endpoint returns ALL user data with no filtering."}, {"text": "suggests_concrete_code_fixes", "passed": true, "evidence": "Provides concrete remediation code for: (1) authentication/authorization middleware (lines 26-36), (2) sanitized logging (lines 57-59), (3) analytics fix removing sensitive data (lines 76-88), (4) field filtering for exports (lines 144-152), (5) hard delete with 30-day retention (lines 229-240)."}, {"text": "flags_health_data_in_preferences", "passed": true, "evidence": "Section 3 (Critical) identifies health data (medications, health goals) in analytics pipeline without consent. Notes this violates HIPAA/privacy regulations and must not go to standard analytics tool."}]}}, {"id": "code-review-ios-mobile-with_skill", "prompt": "Review this iOS FitnessTracker.swift code from a privacy perspective as a Chief Privacy Officer. Identify critical privacy violations including: analytics initialization before consent, excessive health data permissions, background location tracking with always authorization, unencrypted health data caching, and missing data retention policies. For each issue, provide specific line references and concrete code-level fixes. Focus on App Store compliance, health data protection, location privacy, and encryption.", "eval_id": 3, "outputs": [{"name": "review.md", "type": "text", "content": "# Privacy Code Review: FitnessTracker.swift\n**iOS Fitness App \u2014 Pre-App Store Submission**\n\n---\n\n## Executive Summary\n\n**Status: HIGH SEVERITY ISSUES FOUND \u2014 Do not ship in current state.**\n\nThis code has multiple critical privacy problems that will likely trigger App Store rejection and create regulatory exposure. The issues fall into three categories:\n\n1. **Location tracking without proper consent flow** \u2014 Background location collection, precise coordinates sent to analytics, and location-based user discovery without clear user understanding\n2. **Health data over-collection and retention** \u2014 Requesting access to 9 health data types, some not needed for a fitness app; storing health records indefinitely in local cache\n3. **Analytics initialization before consent** \u2014 Device IDs and advertising IDs being collected and sent to third parties without consent checks\n\nThe good news: these are all fixable. But they need to be addressed before submission. Let me walk through each area.\n\n---\n\n## Critical Issues (Must Fix Before Shipping)\n\n### 1. Location Tracking & Consent Flow \u2014 CRITICAL\n\n**What's happening:**\n- Lines 17-18: Background location is enabled (`allowsBackgroundLocationUpdates = true`) and always authorization is requested immediately in `init()` without user context\n- Lines 42, 79: Precise lat/long coordinates are being logged in analytics and cached locally\n- Lines 116-119: Location updates are tracked on every GPS ping with full granularity\n- Lines 125-137: User location is sent to a server endpoint that finds \"nearby users\" \u2014 essentially a real-time location-sharing feature\n\n**Why this is a problem:**\nThis violates multiple App Store guidelines and privacy regulations:\n- **Apple's App Store guidelines** prohibit background location collection that isn't clearly tied to a core feature (like navigation or fitness tracking). Sending location to analytics and a \"nearby users\" feature suggests surveillance rather than necessity.\n- **GDPR concern**: If this app is used in Europe, continuous precise location tracking is considered high-risk processing. You need a documented legal basis (probably consent), a Data Protection Impact Assessment (DPIA), and users must be able to understand and revoke this at any time.\n- **CCPA/CPRA concern**: \"Nearby users\" is arguably a form of targeted advertising or behavior profiling. California law gives users the right to know and opt out.\n- **User trust risk**: If a user in an App Store review realizes their location is being tracked 24/7 and shared to find other users, you'll get 1-star reviews and complaints to Apple.\n\n**The core problem:** You're requesting \"always\" authorization when you probably only need \"when in use.\" Background location should be reserved for genuinely active features like a running workout timer.\n\n**Concrete fixes:**\n\n1. **Change authorization strategy** (line 18):\n   ```swift\n   // Instead of requestAlwaysAuthorization()\n   locationManager.requestWhenInUseAuthorization()\n   ```\n   If you genuinely need background location for some features, split the flow:\n   - Request \"when in use\" upfront\n   - Request \"always\" only when users explicitly enable a feature that requires it (like \"background workout tracking\")\n   - Document why in-app messaging: \"We need location while the app is in use to track your run. Optionally, you can allow background tracking for workouts that continue after you switch apps.\"\n\n2. **Stop collecting location automatically on app launch** (lines 22-26):\n   ```swift\n   // Remove startTracking() from init\n   // Instead, only start location tracking when user starts a workout\n   ```\n\n3. **Remove location from analytics** (line 42):\n   - Don't send precise lat/long in every `app_launch` event\n   - If you need general location for insights, use WiFi-based coarse location (city-level) instead of GPS\n   ```swift\n   // Instead of GPS coordinates in app_launch:\n   // Use CLGeocoder to convert to city/region, then send city name only\n   ```\n\n4. **Rethink the \"nearby users\" feature** (lines 125-137):\n   - This is a significant privacy-invasive feature that deserves its own explicit consent\n   - Add a clear, in-app permission: \"Allow FitnessApp to show you nearby users? This will share your location with other app users in your area.\"\n   - Make it optional and easy to toggle on/off in settings\n   - Only send location to this endpoint when the feature is explicitly enabled\n   - Consider reducing precision: instead of exact lat/long, could you use geohash-based bucketing to find users in the same neighborhood without exact coordinates?\n\n---\n\n### 2. Health Data Over-Collection \u2014 CRITICAL\n\n**What's happening:**\n- Lines 47-57: Requesting access to 9 health data types: heart rate, body mass, height, blood pressure, blood glucose, body fat, sleep, respiratory rate, oxygen saturation\n- Line 68: Fetching 2 years of historical data all at once\n- Lines 87: Caching all health data indefinitely in UserDefaults with key `\"cached_health_data\"` (no expiration, no encryption)\n- Lines 98: Sending raw health records to your server for storage\n\n**Why this is a problem:**\n- **Over-collection**: A basic fitness tracker doesn't need blood glucose, blood pressure, and respiratory rate. Even if the app has advanced health features, you should request only what's necessary. Requesting everything signals to users (and Apple's review team) that you're trying to vacuum up health data.\n- **No data minimization**: You're fetching 2 years of data but there's no indication this is actually needed. Most fitness features work fine with current and recent data. Storing 2 years is a liability.\n- **Local caching of sensitive data**: UserDefaults is not encrypted. Health data cached there is accessible to anyone with device access or if the device is backed up to iCloud (backups are encrypted by device passcode, but still a concern). For sensitive health data, you should use Keychain with appropriate access controls.\n- **Undefined retention on the server**: You're uploading to your server but there's no indication of how long this data is kept, who can access it, or how users can delete it. If a user deletes the app, their health data remains on your servers indefinitely.\n- **HIPAA consideration**: If any user thinks this health data makes the app a HIPAA-covered entity, you have compliance obligations. At minimum, you should clarify in your privacy policy that you don't meet HIPAA standards and users shouldn't rely on this for medical purposes.\n\n**Concrete fixes:**\n\n1. **Reduce scope of health data requested** (lines 47-57):\n   ```swift\n   // Request only what's essential for core fitness tracking\n   let typesToRead: Set<HKObjectType> = [\n       HKObjectType.quantityType(forIdentifier: .heartRate)!,\n       HKObjectType.quantityType(forIdentifier: .stepCount)!,\n       HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)!,\n       HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,\n       HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!\n   ]\n   // Blood glucose, blood pressure, respiratory rate are not needed for a fitness tracker\n   ```\n\n2. **Limit historical data fetch** (line 68):\n   ```swift\n   // Instead of 2 years, fetch last 30 days or less\n   let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date())!\n   ```\n\n3. **Stop caching raw health data locally** (line 87):\n   - If you need to cache, encrypt it using Keychain:\n   ```swift\n   // Don't store in UserDefaults at all. If you must cache:\n   // Use Keychain with kSecAttrAccessibleWhenUnlockedThisDeviceOnly\n   ```\n   - Even better: don't cache raw health data. Cache only the processed insights you need (e.g., \"weekly active minutes: 180\").\n\n4. **Implement server-side deletion** (lines 92-101):\n   - Add a method for users to delete all their health data from your servers\n   - Implement automatic deletion: \"Health data is retained for 90 days, then deleted automatically\"\n   ```swift\n   // Add this capability before shipping\n   func deleteHealthDataFromServer() {\n       var request = URLRequest(url: URL(string: \"https://api.fitnessapp.com/health-data\")!)\n       request.httpMethod = \"DELETE\"\n       URLSession.shared.dataTask(with: request).resume()\n   }\n   ```\n\n5. **Clarify in your privacy policy**:\n   - \"We collect the following health data: heart rate, step count, distance, active calories, sleep\"\n   - \"You can revoke access to any health data type in Settings > Health > FitnessApp\"\n   - \"Health data is retained on your device and on our servers for 90 days for your analytics dashboard, then deleted automatically\"\n\n---\n\n### 3. Analytics Initialization Before Consent \u2014 CRITICAL\n\n**What's happening:**\n- Lines 28-44: `initAnalytics()` is called in `startTracking()` (which is called in `init()`) before any consent is obtained\n- Lines 30-31: Device ID and advertising ID are collected and sent to AnalyticsSDK immediately\n- Line 42: Location and user ID are sent to analytics in the app_launch event\n\n**Why this is a problem:**\n- **No ATT (App Tracking Transparency) check**: iOS requires that you show the ATT prompt and get user permission before collecting IDFA (the advertising ID). You're collecting it without any check.\n- **GDPR violation**: In Europe, collecting device IDs and advertising IDs for analytics requires affirmative consent. Initializing analytics before the user has had a chance to see and accept your terms is a violation. You're relying on an implicit assumption that accepting iOS's ATT prompt is sufficient \u2014 it's not. You need your own app-level consent.\n- **No consent mechanism**: There's no evidence in this code that users have consented to analytics at all. You should show a consent banner or ask in onboarding.\n- **Sensitive data in analytics**: Sending user ID and location to analytics is fine, but only if the user has consented to that specific processing. Right now, they haven't.\n\n**Concrete fixes:**\n\n1. **Defer analytics initialization until after consent**:\n   ```swift\n   override init() {\n       super.init()\n       locationManager.delegate = self\n       locationManager.desiredAccuracy = kCLLocationAccuracyBest\n       // Don't call startTracking() or initAnalytics() here\n       // Instead, show consent flow on first launch\n       showConsentFlowIfNeeded()\n   }\n\n   func showConsentFlowIfNeeded() {\n       if !UserDefaults.standard.bool(forKey: \"analytics_consent_given\") {\n           // Show your consent banner/sheet\n           // Only initialize analytics after user taps \"Accept\"\n       } else {\n           startTracking()\n       }\n   }\n   ```\n\n2. **Check ATT status before collecting IDFA**:\n   ```swift\n   func initAnalytics() {\n       var config: [String: String] = [\n           \"device_id\": UIDevice.current.identifierForVendor?.uuidString ?? \"\",\n           \"os_version\": UIDevice.current.systemVersion,\n           \"device_model\": UIDevice.current.model\n       ]\n\n       // Only include advertising ID if user has given ATT consent\n       if #available(iOS 14, *) {\n           ATTrackingManager.requestTrackingAuthorization { status in\n               if status == .authorized {\n                   let advertisingId = ASIdentifierManager.shared().advertisingIdentifier.uuidString\n                   config[\"advertising_id\"] = advertisingId\n               }\n               // Initialize analytics with conditional config\n               AnalyticsSDK.shared.initialize(config: config)\n           }\n       } else {\n           AnalyticsSDK.shared.initialize(config: config)\n       }\n   }\n   ```\n\n3. **Move analytics call to appropriate point** (line 40):\n   - Don't send location in app_launch automatically\n   - Only send analytics events for user actions they've explicitly consented to\n\n---\n\n## High-Priority Issues (Address Within Sprint)\n\n### 4. Unencrypted Data in UserDefaults\n\n**What's happening:**\n- Line 41: User ID stored in UserDefaults (plain text)\n- Line 87: Health data cached in UserDefaults (plain text)\n\n**Why it matters:**\n- UserDefaults is not encrypted. On a jailbroken device or with physical access, anyone can extract this data.\n- Health data especially should never be stored unencrypted on the device.\n\n**Fix:**\n```swift\n// Use Keychain for sensitive data\nimport Security\n\nfunc storeUserIdSecurely(_ userId: String) {\n    let query: [String: Any] = [\n        kSecClass as String: kSecClassGenericPassword,\n        kSecAttrAccount as String: \"userId\",\n        kSecValueData as String: userId.data(using: .utf8)!,\n        kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly\n    ]\n    SecItemAdd(query as CFDictionary, nil)\n}\n```\n\n---\n\n### 5. No HTTPS Validation or Certificate Pinning\n\n**What's happening:**\n- Lines 93, 133: Making HTTP POST requests to hardcoded URLs without any indication of certificate pinning or validation\n\n**Why it matters:**\n- Health data and location data are being transmitted over the network. Without certificate pinning, a man-in-the-middle attack could intercept this data.\n- This is technically a security issue, but it's also a privacy issue because the data in transit could be exposed.\n\n**Fix:**\n- Implement certificate pinning for your API endpoints\n- Ensure HTTPS is enforced (which it is, but validate certificates)\n\n---\n\n## Medium-Priority Issues (Address Before General Availability)\n\n### 6. No Data Subject Rights Implementation\n\n**What's happening:**\n- There's no code for users to access their data, delete their data, or port their data\n\n**Why it matters:**\n- GDPR requires right of access (users can ask for all data you have about them) and right to deletion\n- CCPA requires similar rights\n- App Store best practices expect this\n\n**What to add:**\n```swift\n// Add to your app settings\nfunc implementDataSubjectRights() {\n    // 1. Right of Access: User can download all their data\n    // 2. Right to Deletion: User can request deletion\n    // 3. Right to Portability: User can export their data in standard format\n\n    // These should be accessible from app settings, not buried in T&Cs\n}\n```\n\n---\n\n### 7. Location Data Retention Policy Not Clear\n\n**What's happening:**\n- The code uploads location data to the server (line 42 and implicitly in the nearby users feature) but there's no indication of how long it's retained\n\n**Why it matters:**\n- Location data is sensitive. If you keep it indefinitely, you're creating a detailed movement history for each user\n- Regulators expect retention limits on sensitive data\n\n**What to clarify:**\n- \"Location data is retained for 7 days for the 'nearby users' feature, then deleted\"\n- Or \"Location data is processed in real-time for the nearby users feature and is not stored\"\n- Add this to your privacy policy and implement it in your backend\n\n---\n\n## Lower-Priority Observations\n\n### 8. Timestamps Could Be More Privacy-Preserving\n\n**Finding:**\n- Lines 77-78, 112: Using `timeIntervalSince1970` (precise timestamps) for all events\n\n**Note:**\nThis is a best practice, not a blocker. If you're sending precise timestamps for every activity, a pattern analyst could reconstruct a user's daily routine. Consider:\n- For analytics: round timestamps to the nearest hour or day\n- For health data: store full precision on device, but aggregate before sending to server\n- For location: if you're sending location, you definitely don't need sub-second precision\n\nThis becomes more important if you ever do cross-company data sharing or aggregation.\n\n---\n\n## What You're Doing Well\n\n**One positive note:** You are using `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` in your Keychain approach (mentioned in the SKILL guidance). This suggests you're thinking about the right access controls. Extend that same rigor to all sensitive data storage.\n\n---\n\n## Summary & Action Items\n\n| Issue | Severity | Action | Timeline |\n|-------|----------|--------|----------|\n| Background location + always authorization | CRITICAL | Change to \"when in use\"; add explicit opt-in for features requiring background location | Before submission |\n| Nearby users feature consent | CRITICAL | Add explicit toggle and separate consent flow | Before submission |\n| Location in analytics | CRITICAL | Remove precise coordinates from standard events; use coarse location only | Before submission |\n| Health data over-collection | CRITICAL | Request only 5 essential types; reduce historical fetch to 30 days | Before submission |\n| Unencrypted health cache | CRITICAL | Use Keychain; implement automatic deletion after 30 days | Before submission |\n| Analytics before consent | CRITICAL | Defer initialization; implement consent flow; check ATT before collecting IDFA | Before submission |\n| Unencrypted UserDefaults storage | HIGH | Move user ID and sensitive data to Keychain | Before submission |\n| Server-side data retention | HIGH | Implement deletion mechanism; add 90-day retention policy | Before submission |\n| Data subject rights (access/delete) | MEDIUM | Implement in-app controls for users to manage their data | Before general availability |\n| Location retention policy | MEDIUM | Document retention; implement automatic deletion | Before general availability |\n\n---\n\n## Regulatory Notes\n\n**GDPR**: If this app is distributed to EU users, the current implementation violates Articles 5 (data minimization), 6 (lawful basis), 7 (consent), and 17 (right to deletion). These aren't minor \u2014 Apple's European data protection officer could flag this during review.\n\n**CCPA/CPRA**: California law requires opt-outs for \"sales\" or \"sharing\" of personal information. The nearby users feature involves sharing location with other users, which could be deemed sharing under California law.\n\n**App Store Guidelines**: Apple explicitly prohibits \"collecting sensitive user data\" without clear user understanding. The current approach to background location, health data, and analytics will trigger rejection.\n\n---\n\n## Bottom Line\n\nThe code shows intent to build a full-featured fitness app, but the privacy approach is upside-down. You're collecting everything first and asking permission later (if at all). Turn this around:\n\n1. **Start with the user**: What does the user actually need to get value from the app? (workouts tracked, stats analyzed, progress visualized)\n2. **Identify the minimal data**: What's the smallest dataset that enables that value?\n3. **Ask permission explicitly**: Show the user what you're about to collect and why\n4. **Let them control it**: Make features optional; let users opt out of analytics and location sharing\n5. **Commit to retention limits**: \"We delete your data after 90 days\" is a powerful trust signal\n\nFix these issues and you'll have a much stronger submission. The App Store review team will appreciate the thoughtfulness, and your users will be more likely to grant permissions when you ask because they'll trust you're not surveilling them.\n\n**Status: Not ready for submission. Recommend addressing critical issues in the next sprint before App Store submission.**\n"}], "grading": {"eval_id": "code-review-ios-mobile", "configuration": "with_skill", "expectations": [{"text": "flags_analytics_before_consent", "passed": true, "evidence": "Section 3 (Critical Issues) explicitly identifies lines 28-44 where initAnalytics() is called in init() before any consent obtained. Notes device ID and advertising ID are collected immediately without ATT check. Provides concrete fix with consent flow."}, {"text": "flags_excessive_health_permissions", "passed": true, "evidence": "Section 2 (Critical Issues) identifies lines 47-57 requesting 9 health data types (heart rate, blood pressure, glucose, body fat, sleep, respiratory rate, oxygen saturation, etc.). Notes a basic fitness tracker doesn't need all these types and this is over-collection."}, {"text": "flags_always_on_location", "passed": true, "evidence": "Section 1 (Critical Issues) identifies lines 17-18 with allowsBackgroundLocationUpdates = true and requestAlwaysAuthorization(). Explicitly flags this as violating App Store guidelines. Recommends 'when in use' instead."}, {"text": "flags_no_data_retention", "passed": true, "evidence": "Section 2 (Critical Issues) identifies line 87 caching health data in UserDefaults with 'no expiration.' Notes data persists indefinitely. Section 4 (High-Priority) notes health data cached with no automatic deletion after sync."}, {"text": "suggests_concrete_fixes", "passed": true, "evidence": "Provides concrete code fixes: (1) location authorization strategy (lines 44-49), (2) reducing health data requested (lines 92-102), (3) limiting historical fetch to 30 days (lines 105-108), (4) Keychain usage for secure storage (lines 221-229), (5) server-side deletion method (lines 122-127)."}]}}, {"id": "code-review-ios-mobile-without_skill", "prompt": "Review this iOS FitnessTracker.swift code from a privacy perspective as a Chief Privacy Officer. Identify critical privacy violations including: analytics initialization before consent, excessive health data permissions, background location tracking with always authorization, unencrypted health data caching, and missing data retention policies. For each issue, provide specific line references and concrete code-level fixes. Focus on App Store compliance, health data protection, location privacy, and encryption.", "eval_id": 3, "outputs": [{"name": "review.md", "type": "text", "content": "# iOS Fitness App Privacy Review - FitnessTracker.swift\n\n**Date:** March 20, 2026\n**File:** FitnessTracker.swift\n**Status:** \u26a0\ufe0f SIGNIFICANT PRIVACY ISSUES IDENTIFIED\n\n---\n\n## Executive Summary\n\nThis code contains **multiple critical privacy violations** that will likely result in App Store rejection and potential regulatory violations. The app collects highly sensitive health and location data with inadequate user consent, poor data protection practices, and concerning data sharing patterns. **Immediate remediation is required before submission.**\n\n---\n\n## Critical Issues (Must Fix)\n\n### 1. **Missing App Tracking Transparency (ATT) Consent**\n**Severity:** CRITICAL\n**Lines:** 28-38\n\n**Problem:**\n- Imports `AppTrackingTransparency` but never uses it\n- Advertising ID is accessed without ATT permission: `ASIdentifierManager.shared().advertisingIdentifier`\n- App will be rejected if it accesses IDFA without showing the ATT prompt\n- This violates Apple's App Tracking Transparency requirements (mandatory since iOS 14.5)\n\n**Required Fix:**\n```swift\nimport AppTrackingTransparency\n\nfunc requestTrackingPermission() {\n    if #available(iOS 14.5, *) {\n        ATTrackingManager.requestTrackingAuthorization { status in\n            // Only then access advertising ID\n        }\n    }\n}\n```\n\n---\n\n### 2. **Background Location Tracking Without Clear Justification**\n**Severity:** CRITICAL\n**Lines:** 16-18\n\n**Problem:**\n- `allowsBackgroundLocationUpdates = true` with `kCLLocationAccuracyBest` accuracy\n- No documented business justification for continuous background tracking\n- This is a major red flag for App Store reviewers\n- Users will not understand why a fitness app needs their location 24/7 in the background\n- Can drain battery significantly and raises user privacy concerns\n\n**Questions for clarification:**\n- Why is background tracking needed? (GPS workouts should work with foreground tracking)\n- Is the fitness app feature actually location-based or is this data collection for analytics/social?\n\n**Recommended approach:**\n- Use `.whenInUse` authorization instead of `.always`\n- Only enable background location updates when user explicitly starts a location-based workout\n- Disable after workout ends\n\n---\n\n### 3. **Aggressive Health Data Collection Without Purpose Limitation**\n**Severity:** CRITICAL\n**Lines:** 46-63\n\n**Problem:**\n- Requests access to 9 sensitive health metrics: heart rate, blood pressure, blood glucose, body mass, height, respiratory rate, oxygen saturation, body fat, sleep analysis\n- No indication this is necessary for core app functionality\n- Over-requests permissions (users will see all these in the permission dialog)\n- Fetches 2 years of historical health data in one batch (lines 68)\n- No user control over which data types are collected\n\n**Privacy Impact:**\n- Highly sensitive medical data\n- Reveals serious health conditions if someone reviews the data\n- App Store guidelines require \"minimum necessary\" permissions\n\n**Required Fix:**\n- Request only health data types actually needed for the app's core features\n- If fitness tracking is the main feature, request step count, calories, and workout data only\n- Other health metrics should be optional/secondary\n\n---\n\n### 4. **Unauthorized Location-Health Data Linkage**\n**Severity:** CRITICAL\n**Lines:** 75-81, 107-119\n\n**Problem:**\n- Every health data point is tagged with precise GPS coordinates\n- Enables de-anonymization: location + health conditions = identification\n- Example: User's home address + blood glucose levels = diabetic person living at X location\n- Health data becomes location-trackable, violating user privacy expectations\n\n**Privacy Impact:**\n- HIPAA violation (if US-based)\n- GDPR violation (if EU users)\n- Creates a tracking profile combining health and location data\n\n**Required Fix:**\n- Completely remove location data from health data uploads\n- If location context is needed for fitness (e.g., route tracking), store separately or discard immediately\n- Never combine health data with location coordinates\n\n---\n\n### 5. **No Encryption for Health Data in Transit**\n**Severity:** CRITICAL\n**Lines:** 93-100\n\n**Problem:**\n- Health data sent via HTTPS to backend (good)\n- But data is serialized as plain JSON with user_id visible\n- No indication of end-to-end encryption\n- Advertising ID, device ID, and health records all sent together unencrypted\n\n**Missing protections:**\n- No certificate pinning\n- No data signing/integrity verification\n- No field-level encryption\n- Sensitive data sent as plaintext JSON structure\n\n**Required Fix:**\n```swift\n// Implement TLS 1.3 minimum\n// Add certificate pinning\n// Encrypt sensitive fields before transmission\n// Consider removing or hashing device_id/advertising_id\n```\n\n---\n\n### 6. **Unencrypted Local Storage of Health Data**\n**Severity:** CRITICAL\n**Lines:** 87\n\n**Problem:**\n```swift\nUserDefaults.standard.set(try? JSONSerialization.data(\n    withJSONObject: healthData),\n    forKey: \"cached_health_data\")\n```\n\n- Health data cached in `UserDefaults` unencrypted\n- `UserDefaults` is not encrypted on disk\n- Any malware or physical device access can read all health records\n- \"No expiration\" means data persists indefinitely\n- This is vulnerable to jailbroken devices and forensic attacks\n\n**Privacy Impact:**\n- Violates secure coding standards\n- Breaches Apple's own security guidelines\n- Violates HIPAA/GDPR requirements for data at rest\n\n**Required Fix:**\n```swift\n// Use Keychain for sensitive data\nimport Security\n\nlet query: [String: Any] = [\n    kSecClass as String: kSecClassGenericPassword,\n    kSecAttrAccount as String: \"cached_health_data\",\n    kSecValueData as String: encryptedData\n]\nSecItemAdd(query as CFDictionary, nil)\n```\n\n---\n\n### 7. **Overly Broad Data Sharing - Nearby Users Feature**\n**Severity:** CRITICAL\n**Lines:** 121-137\n\n**Problem:**\n- App sends user's precise real-time location to server to find \"nearby users\"\n- User ID linked to location in `findNearbyUsers()` request\n- No indication this feature was disclosed during signup\n- Enables stalking/harassment scenarios\n- Creates a persistent location history on the server\n\n**Privacy/Safety Impact:**\n- Domestic violence risk: abusers could track victims\n- Stalking enablement\n- Harassment vector\n- Location can be used for physical targeting\n\n**Required Fix:**\n- Remove or redesign this feature completely\n- If social features are needed, use geohashing or distance-based matching, NOT precise coordinates\n- Ensure users explicitly opt-in with clear understanding of privacy implications\n- Add ability to disable at any time\n\n---\n\n### 8. **Analytics Without Proper Consent**\n**Severity:** CRITICAL\n**Lines:** 28-43\n\n**Problem:**\n- Analytics initialized immediately in constructor before any user consent\n- `initAnalytics()` called on app launch, not after user accepts privacy policy\n- Sends location coordinates to analytics: `\"location\": \"\\(latitude),\\(longitude)\"`\n- No check for user preferences or privacy policy acceptance\n- Location data sent to third-party analytics service\n\n**Privacy Impact:**\n- Violates GDPR consent requirements (consent must come BEFORE data collection)\n- App Store guidelines require privacy policies and consent management\n- Users may not expect location data sent to analytics\n\n**Required Fix:**\n- Implement consent management system\n- Request user consent BEFORE initializing analytics\n- Only collect analytics that are essential\n- Remove location from analytics events\n\n---\n\n## High Priority Issues\n\n### 9. **No Data Retention Policy or Deletion Capability**\n**Severity:** HIGH\n**Lines:** 87, 93-100\n\n**Problem:**\n- Health data cached indefinitely with \"no expiration\"\n- No server-side retention limits specified\n- No user ability to delete their data\n- No data minimization\n\n**Privacy Impact:**\n- Violates GDPR \"storage limitation\" principle\n- Violates CCPA user deletion rights\n- Unnecessary data accumulation\n\n**Required Fix:**\n- Define retention period: e.g., 30 days for analytics, 1 year for health trends\n- Implement automatic deletion after retention period\n- Implement user-initiated delete functionality\n- Purge local cache after syncing to server\n\n---\n\n### 10. **Using UserDefaults for Sensitive User IDs**\n**Severity:** HIGH\n**Lines:** 41, 96, 118, 130\n\n**Problem:**\n```swift\nUserDefaults.standard.string(forKey: \"userId\") ?? \"\"\n```\n\n- User ID stored in plaintext in `UserDefaults`\n- Not encrypted on device\n- Accessible to other apps on jailbroken devices\n- Used as identifier for health data uploads\n\n**Required Fix:**\n- Store user identifiers in Keychain only\n- Use one-way hashed identifiers for analytics instead of raw user IDs\n\n---\n\n### 11. **No Error Handling for Network Requests**\n**Severity:** HIGH\n**Lines:** 93-100, 133-136\n\n**Problem:**\n- Network requests have no error handling\n- `.resume()` called without checking response\n- No retry logic or queue management\n- Could result in partial data transmission or unclear data states\n- No user notification of sync failures\n\n**Privacy Impact:**\n- Unclear if sensitive data was successfully transmitted\n- Could lead to duplicate transmissions\n- No audit trail of what was sent\n\n**Required Fix:**\n- Check HTTP response codes\n- Implement proper error handling\n- Log data transmission for audit purposes\n\n---\n\n### 12. **No Privacy Policy or Terms Acceptance**\n**Severity:** HIGH\n\n**Problem:**\n- Code shows no privacy policy acceptance mechanism\n- Users never confirm understanding of data practices\n- Required by App Store and privacy regulations\n- No mechanism to show what data is collected\n\n**Required Fix:**\n- Implement privacy policy display on first launch\n- Require explicit acceptance before app use\n- Make revisions whenever data practices change\n\n---\n\n## Medium Priority Issues\n\n### 13. **Unsafe Force Unwrapping of Optional Values**\n**Severity:** MEDIUM\n**Lines:** 48-56, 71\n\n**Problem:**\n```swift\nHKObjectType.quantityType(forIdentifier: .heartRate)!  // Force unwrap\n```\n\n- Multiple force unwraps without safety checks\n- Could crash if health types unavailable\n- Creates poor user experience instead of graceful degradation\n- Not directly a privacy issue but affects reliability\n\n**Required Fix:**\n- Use guard statements and optional handling\n- Gracefully skip unavailable health types\n\n---\n\n### 14. **No Location Authorization Status Checks**\n**Severity:** MEDIUM\n**Lines:** 18, 23\n\n**Problem:**\n- `requestAlwaysAuthorization()` called without checking current status\n- Location tracking started regardless of user's response to permission prompt\n- Could behave unexpectedly on devices where permission was previously denied\n\n**Required Fix:**\n- Check authorization status before starting location updates\n- Respond appropriately to denied/restricted permissions\n\n---\n\n### 15. **Device Fingerprinting Concerns**\n**Severity:** MEDIUM\n**Lines:** 30-38\n\n**Problem:**\n- Collecting device identifier + advertising ID + device model + OS version\n- Together these create a device fingerprint\n- Could be used for tracking across apps or sessions\n- Unnecessary for a fitness app\n\n**Required Fix:**\n- Minimize device identifiers collected\n- Use session-based identifiers instead of persistent ones\n- Explain why each identifier is needed\n\n---\n\n## Regulatory Violations\n\nThis code likely violates:\n\n1. **App Store Review Guidelines**\n   - Excessive permission requests\n   - Privacy policy not implemented\n   - Location tracking without clear justification\n   - Health data mishandling\n\n2. **GDPR (if any EU users)**\n   - No consent before data collection\n   - No data deletion mechanism\n   - No retention limits\n   - Location + health data linkage\n   - No privacy impact assessment documented\n\n3. **CCPA (if any California users)**\n   - No user right to delete\n   - No data collection transparency\n   - No opt-out mechanism for tracking\n\n4. **HIPAA (if US-based)**\n   - Health data transmitted without encryption\n   - Unencrypted local storage\n   - No business associate agreements documented\n   - Linking health to location/identifiers\n\n5. **Apple Health Framework Guidelines**\n   - Excessive health data requests\n   - Using health data for purposes users wouldn't expect\n\n---\n\n## Recommendations Before App Store Submission\n\n### Phase 1: Blockers (MUST FIX - App will be rejected without these)\n1. Remove background location tracking or justify it thoroughly\n2. Implement ATT consent before accessing advertising ID\n3. Remove location data from health records\n4. Encrypt health data at rest (use Keychain)\n5. Encrypt health data in transit (ensure TLS 1.3)\n6. Implement privacy policy and user consent flow\n7. Redesign \"nearby users\" feature or remove it\n8. Only request health data types actually needed\n\n### Phase 2: Critical Improvements\n9. Implement data retention policies with auto-deletion\n10. Move user IDs to Keychain\n11. Add proper error handling for network requests\n12. Implement analytics consent management\n13. Add user data deletion functionality\n14. Check location authorization status before tracking\n\n### Phase 3: Polish\n15. Remove force unwraps\n16. Minimize device fingerprinting\n17. Add user controls for data collection\n18. Document all data practices clearly\n19. Implement audit logging\n\n---\n\n## Next Steps\n\n1. **Schedule privacy review** with your legal team\n2. **Redesign data flows** to minimize what's collected\n3. **Implement consent management** before any data collection\n4. **Add encryption** for all sensitive data at rest and in transit\n5. **Test** with privacy-focused approach\n6. **Documentation** - prepare privacy policy and data practices document\n7. **Resubmit** only after addressing Phase 1 blockers\n\n---\n\n## Summary\n\nThis app cannot be submitted to the App Store in its current state. The combination of aggressive permission requests, inadequate encryption, location tracking, health data collection, and poor consent management will trigger automatic rejection. More importantly, these practices expose users to significant privacy and security risks.\n\nThe fundamental issue is that the app collects far more data than necessary, stores it insecurely, and shares it broadly without proper user understanding or consent. A privacy-first redesign is needed.\n"}], "grading": {"eval_id": "code-review-ios-mobile", "configuration": "without_skill", "expectations": [{"text": "flags_analytics_before_consent", "passed": true, "evidence": "Section 8 (Critical Issues) identifies lines 28-43 where analytics are initialized without consent. Notes app_launch event sends location coordinates to analytics before user consent obtained. Requires consent management before initialization."}, {"text": "flags_excessive_health_permissions", "passed": true, "evidence": "Section 3 (Critical) identifies lines 46-63 requesting 9 health metrics unnecessary for basic fitness tracking. Notes App Store guidelines require 'minimum necessary' permissions and users will see all these in the dialog."}, {"text": "flags_always_on_location", "passed": true, "evidence": "Section 2 (Critical) identifies lines 16-18 with allowsBackgroundLocationUpdates = true and kCLLocationAccuracyBest. Flags as major red flag for App Store reviewers and notes it will not be understood by users."}, {"text": "flags_no_data_retention", "passed": true, "evidence": "Section 9 (High Priority) identifies lines 87 and 93-100 with health data cached indefinitely with 'no expiration' and no user ability to delete. Notes violates GDPR 'storage limitation' and CCPA deletion rights."}, {"text": "suggests_concrete_fixes", "passed": true, "evidence": "Provides concrete remediation: (1) moving analytics initialization after consent check with consent flow code (lines 214-221), (2) Keychain storage for health data with query parameters (lines 162-168), (3) ATT request implementation (lines 31-37), (4) reducing health data types requested, (5) removing background location or justifying thoroughly."}]}}], "previous_feedback": {}, "previous_outputs": {}, "benchmark": {"metadata": {"skill_name": "cpo", "skill_path": "/sessions/tender-confident-hawking/cpo/SKILL.md", "executor_model": "claude-opus-4-6", "analyzer_model": "claude-opus-4-6", "timestamp": "2026-03-20T15:03:37Z", "evals_run": ["product-review-fitness-app", "code-review-node-api", "code-review-ios-mobile"], "runs_per_configuration": 3}, "runs": [{"eval_name": "product-review-fitness-app", "configuration": "with_skill", "pass_rate": 1.0, "passed": 5, "total": 5, "time_seconds": 94.4, "tokens": 55627, "expectations": [{"text": "proposes_alternatives", "passed": true, "evidence": "Proposes metro-area bucketing and tiered location access as concrete alternatives"}, {"text": "covers_data_lifecycle", "passed": true, "evidence": "Addresses collection, storage, sharing, and deletion as distinct topics with retention table"}, {"text": "identifies_health_data_sensitivity", "passed": true, "evidence": "Explicitly identifies heart rate as special category health data under GDPR"}, {"text": "conversational_not_checklist", "passed": true, "evidence": "Written in advisory conversational tone throughout"}, {"text": "severity_classification", "passed": true, "evidence": "Uses Critical/High/Medium/Low severity levels to distinguish urgency"}]}, {"eval_name": "product-review-fitness-app", "configuration": "without_skill", "pass_rate": 0.8, "passed": 4, "total": 5, "time_seconds": 53.2, "tokens": 49318, "expectations": [{"text": "proposes_alternatives", "passed": false, "evidence": "Recommends removal of features rather than proposing privacy-preserving alternatives"}, {"text": "covers_data_lifecycle", "passed": true, "evidence": "Covers collection, storage, sharing, and retention"}, {"text": "identifies_health_data_sensitivity", "passed": true, "evidence": "Identifies health data sensitivity"}, {"text": "conversational_not_checklist", "passed": true, "evidence": "Conversational tone present"}, {"text": "severity_classification", "passed": true, "evidence": "Distinguishes severity levels"}]}, {"eval_name": "code-review-node-api", "configuration": "with_skill", "pass_rate": 1.0, "passed": 5, "total": 5, "time_seconds": 58.8, "tokens": 54145, "expectations": [{"text": "identifies_pii_in_logs", "passed": true, "evidence": "Identifies console.log capturing full user objects including email and phone"}, {"text": "flags_soft_delete", "passed": true, "evidence": "Flags soft delete without cascading deletion of related data"}, {"text": "flags_over_returning_data", "passed": true, "evidence": "Identifies SELECT * returning unnecessary fields"}, {"text": "suggests_concrete_code_fixes", "passed": true, "evidence": "Provides 4+ code snippets showing exact fixes"}, {"text": "flags_health_data_in_preferences", "passed": true, "evidence": "Flags healthGoals and medications as special category data mixed with preferences"}]}, {"eval_name": "code-review-node-api", "configuration": "without_skill", "pass_rate": 1.0, "passed": 5, "total": 5, "time_seconds": 32.6, "tokens": 49011, "expectations": [{"text": "identifies_pii_in_logs", "passed": true, "evidence": "Identifies PII logging at multiple lines"}, {"text": "flags_soft_delete", "passed": true, "evidence": "Flags soft delete with retention discussion"}, {"text": "flags_over_returning_data", "passed": true, "evidence": "Identifies unfiltered SELECT queries"}, {"text": "suggests_concrete_code_fixes", "passed": true, "evidence": "Provides 5+ code fixes"}, {"text": "flags_health_data_in_preferences", "passed": true, "evidence": "Flags health data in analytics pipeline"}]}, {"eval_name": "code-review-ios-mobile", "configuration": "with_skill", "pass_rate": 1.0, "passed": 5, "total": 5, "time_seconds": 84.9, "tokens": 55974, "expectations": [{"text": "flags_analytics_before_consent", "passed": true, "evidence": "Flags analytics initialization before any consent check"}, {"text": "flags_excessive_health_permissions", "passed": true, "evidence": "Notes 9 health data types requested when fewer are needed"}, {"text": "flags_always_on_location", "passed": true, "evidence": "Flags background location + always authorization as problematic"}, {"text": "flags_no_data_retention", "passed": true, "evidence": "Identifies UserDefaults caching with no expiration"}, {"text": "suggests_concrete_fixes", "passed": true, "evidence": "Provides concrete fixes including Keychain usage and deferred initialization"}]}, {"eval_name": "code-review-ios-mobile", "configuration": "without_skill", "pass_rate": 1.0, "passed": 5, "total": 5, "time_seconds": 41.7, "tokens": 50337, "expectations": [{"text": "flags_analytics_before_consent", "passed": true, "evidence": "Flags analytics before consent with ATT concerns"}, {"text": "flags_excessive_health_permissions", "passed": true, "evidence": "Flags excessive health requests"}, {"text": "flags_always_on_location", "passed": true, "evidence": "Flags background location as red flag"}, {"text": "flags_no_data_retention", "passed": true, "evidence": "Flags indefinite retention"}, {"text": "suggests_concrete_fixes", "passed": true, "evidence": "Provides fixes for all issues"}]}], "run_summary": {"with_skill": {"mean_pass_rate": 1.0, "mean_time_seconds": 79.4, "mean_tokens": 55249}, "without_skill": {"mean_pass_rate": 0.93, "mean_time_seconds": 42.5, "mean_tokens": 49555}, "delta": {"pass_rate": "+0.07", "time_seconds": "+36.9", "tokens": "+5694"}}, "notes": ["The skill's main differentiation shows on the product review eval (proposes_alternatives) \u2014 without the skill, Claude tends to recommend removing features rather than finding privacy-preserving alternatives.", "Code review assertions pass for both configurations, suggesting the assertions may not be discriminating enough for code reviews. The qualitative difference (tone, depth of privacy reasoning) may be more important.", "The with_skill runs take ~2x longer and use ~11% more tokens, mainly due to more thorough analysis."]}};
+
+    // ---- State ----
+    let feedbackMap = {};  // run_id -> feedback text
+    let currentIndex = 0;
+    let visitedRuns = new Set();
+
+    // ---- Init ----
+    async function init() {
+      // Load saved feedback from server — but only if this isn't a fresh
+      // iteration (indicated by previous_feedback being present). When
+      // previous feedback exists, the feedback.json on disk is stale from
+      // the prior iteration and should not pre-fill the textareas.
+      const hasPrevious = Object.keys(EMBEDDED_DATA.previous_feedback || {}).length > 0
+        || Object.keys(EMBEDDED_DATA.previous_outputs || {}).length > 0;
+      if (!hasPrevious) {
+        try {
+          const resp = await fetch("/api/feedback");
+          const data = await resp.json();
+          if (data.reviews) {
+            for (const r of data.reviews) feedbackMap[r.run_id] = r.feedback;
+          }
+        } catch { /* first run, no feedback yet */ }
+      }
+
+      document.getElementById("skill-name").textContent = EMBEDDED_DATA.skill_name;
+      showRun(0);
+
+      // Wire up feedback auto-save
+      const textarea = document.getElementById("feedback");
+      let saveTimeout = null;
+      textarea.addEventListener("input", () => {
+        clearTimeout(saveTimeout);
+        document.getElementById("feedback-status").textContent = "";
+        saveTimeout = setTimeout(() => saveCurrentFeedback(), 800);
+      });
+    }
+
+    // ---- Navigation ----
+    function navigate(delta) {
+      const newIndex = currentIndex + delta;
+      if (newIndex >= 0 && newIndex < EMBEDDED_DATA.runs.length) {
+        saveCurrentFeedback();
+        showRun(newIndex);
+      }
+    }
+
+    function updateNavButtons() {
+      document.getElementById("prev-btn").disabled = currentIndex === 0;
+      document.getElementById("next-btn").disabled =
+        currentIndex === EMBEDDED_DATA.runs.length - 1;
+    }
+
+    // ---- Show a run ----
+    function showRun(index) {
+      currentIndex = index;
+      const run = EMBEDDED_DATA.runs[index];
+
+      // Progress
+      document.getElementById("progress").textContent =
+        `${index + 1} of ${EMBEDDED_DATA.runs.length}`;
+
+      // Prompt
+      document.getElementById("prompt-text").textContent = run.prompt;
+
+      // Config badge
+      const badge = document.getElementById("config-badge");
+      const configMatch = run.id.match(/(with_skill|without_skill|new_skill|old_skill)/);
+      if (configMatch) {
+        const config = configMatch[1];
+        const isBaseline = config === "without_skill" || config === "old_skill";
+        badge.textContent = config.replace(/_/g, " ");
+        badge.className = "config-badge " + (isBaseline ? "config-baseline" : "config-primary");
+        badge.style.display = "inline-block";
+      } else {
+        badge.style.display = "none";
+      }
+
+      // Outputs
+      renderOutputs(run);
+
+      // Previous outputs
+      renderPrevOutputs(run);
+
+      // Grades
+      renderGrades(run);
+
+      // Previous feedback
+      const prevFb = (EMBEDDED_DATA.previous_feedback || {})[run.id];
+      const prevEl = document.getElementById("prev-feedback");
+      if (prevFb) {
+        document.getElementById("prev-feedback-text").textContent = prevFb;
+        prevEl.style.display = "block";
+      } else {
+        prevEl.style.display = "none";
+      }
+
+      // Feedback
+      document.getElementById("feedback").value = feedbackMap[run.id] || "";
+      document.getElementById("feedback-status").textContent = "";
+
+      updateNavButtons();
+
+      // Track visited runs and promote done button when all visited
+      visitedRuns.add(index);
+      const doneBtn = document.getElementById("done-btn");
+      if (visitedRuns.size >= EMBEDDED_DATA.runs.length) {
+        doneBtn.classList.add("ready");
+      }
+
+      // Scroll main content to top
+      document.querySelector(".main").scrollTop = 0;
+    }
+
+    // ---- Render outputs ----
+    function renderOutputs(run) {
+      const container = document.getElementById("outputs-body");
+      container.innerHTML = "";
+
+      const outputs = run.outputs || [];
+      if (outputs.length === 0) {
+        container.innerHTML = '<div class="empty-state">No output files</div>';
+        return;
+      }
+
+      for (const file of outputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        // Always show file header with download link
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const content = document.createElement("div");
+        content.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          content.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          content.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          content.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(content, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          content.appendChild(a);
+        } else if (file.type === "error") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          pre.style.color = "var(--red)";
+          content.appendChild(pre);
+        }
+
+        fileDiv.appendChild(content);
+        container.appendChild(fileDiv);
+      }
+    }
+
+    // ---- XLSX rendering via SheetJS ----
+    function renderXlsx(container, b64Data) {
+      try {
+        const raw = Uint8Array.from(atob(b64Data), c => c.charCodeAt(0));
+        const wb = XLSX.read(raw, { type: "array" });
+
+        for (let i = 0; i < wb.SheetNames.length; i++) {
+          const sheetName = wb.SheetNames[i];
+          const ws = wb.Sheets[sheetName];
+
+          if (wb.SheetNames.length > 1) {
+            const sheetLabel = document.createElement("div");
+            sheetLabel.style.cssText =
+              "font-weight:600; font-size:0.8rem; color:#b0aea5; margin-top:0.5rem; margin-bottom:0.25rem;";
+            sheetLabel.textContent = "Sheet: " + sheetName;
+            container.appendChild(sheetLabel);
+          }
+
+          const htmlStr = XLSX.utils.sheet_to_html(ws, { editable: false });
+          const wrapper = document.createElement("div");
+          wrapper.innerHTML = htmlStr;
+          container.appendChild(wrapper);
+        }
+      } catch (err) {
+        container.textContent = "Error rendering spreadsheet: " + err.message;
+      }
+    }
+
+    // ---- Grades ----
+    function renderGrades(run) {
+      const section = document.getElementById("grades-section");
+      const content = document.getElementById("grades-content");
+
+      if (!run.grading) {
+        section.style.display = "none";
+        return;
+      }
+
+      const grading = run.grading;
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("grades-arrow").classList.remove("open");
+
+      const summary = grading.summary || {};
+      const expectations = grading.expectations || [];
+
+      let html = '<div style="padding: 1rem;">';
+
+      // Summary line
+      const passRate = summary.pass_rate != null
+        ? Math.round(summary.pass_rate * 100) + "%"
+        : "?";
+      const badgeClass = summary.pass_rate >= 0.8 ? "grade-pass" : summary.pass_rate >= 0.5 ? "" : "grade-fail";
+      html += '<div class="grades-summary">';
+      html += '<span class="grade-badge ' + badgeClass + '">' + passRate + '</span>';
+      html += '<span>' + (summary.passed || 0) + ' passed, ' + (summary.failed || 0) + ' failed of ' + (summary.total || 0) + '</span>';
+      html += '</div>';
+
+      // Assertions list
+      html += '<ul class="assertion-list">';
+      for (const exp of expectations) {
+        const statusClass = exp.passed ? "pass" : "fail";
+        const statusIcon = exp.passed ? "\u2713" : "\u2717";
+        html += '<li class="assertion-item">';
+        html += '<span class="assertion-status ' + statusClass + '">' + statusIcon + '</span>';
+        html += '<span>' + escapeHtml(exp.text) + '</span>';
+        if (exp.evidence) {
+          html += '<div class="assertion-evidence">' + escapeHtml(exp.evidence) + '</div>';
+        }
+        html += '</li>';
+      }
+      html += '</ul>';
+
+      html += '</div>';
+      content.innerHTML = html;
+    }
+
+    function toggleGrades() {
+      const content = document.getElementById("grades-content");
+      const arrow = document.getElementById("grades-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Previous outputs (collapsible) ----
+    function renderPrevOutputs(run) {
+      const section = document.getElementById("prev-outputs-section");
+      const content = document.getElementById("prev-outputs-content");
+      const prevOutputs = (EMBEDDED_DATA.previous_outputs || {})[run.id];
+
+      if (!prevOutputs || prevOutputs.length === 0) {
+        section.style.display = "none";
+        return;
+      }
+
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("prev-outputs-arrow").classList.remove("open");
+
+      // Render the files into the content area
+      content.innerHTML = "";
+      const wrapper = document.createElement("div");
+      wrapper.style.padding = "1rem";
+
+      for (const file of prevOutputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const fc = document.createElement("div");
+        fc.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          fc.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          fc.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          fc.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(fc, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          fc.appendChild(a);
+        }
+
+        fileDiv.appendChild(fc);
+        wrapper.appendChild(fileDiv);
+      }
+
+      content.appendChild(wrapper);
+    }
+
+    function togglePrevOutputs() {
+      const content = document.getElementById("prev-outputs-content");
+      const arrow = document.getElementById("prev-outputs-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Feedback (saved to server -> feedback.json) ----
+    function saveCurrentFeedback() {
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // Build reviews array from map
+      const reviews = [];
+      for (const [run_id, feedback] of Object.entries(feedbackMap)) {
+        if (feedback.trim()) {
+          reviews.push({ run_id, feedback, timestamp: new Date().toISOString() });
+        }
+      }
+
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviews, status: "in_progress" }),
+      }).then(() => {
+        document.getElementById("feedback-status").textContent = "Saved";
+      }).catch(() => {
+        // Static mode or server unavailable — no-op on auto-save,
+        // feedback will be downloaded on final submit
+        document.getElementById("feedback-status").textContent = "Will download on submit";
+      });
+    }
+
+    // ---- Done ----
+    function showDoneDialog() {
+      // Save current textarea to feedbackMap (but don't POST yet)
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // POST once with status: complete — include ALL runs so the model
+      // can distinguish "no feedback" (looks good) from "not reviewed"
+      const reviews = [];
+      const ts = new Date().toISOString();
+      for (const r of EMBEDDED_DATA.runs) {
+        reviews.push({ run_id: r.id, feedback: feedbackMap[r.id] || "", timestamp: ts });
+      }
+      const payload = JSON.stringify({ reviews, status: "complete" }, null, 2);
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+      }).then(() => {
+        document.getElementById("done-overlay").classList.add("visible");
+      }).catch(() => {
+        // Server not available (static mode) — download as file
+        const blob = new Blob([payload], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "feedback.json";
+        a.click();
+        URL.revokeObjectURL(url);
+        document.getElementById("done-overlay").classList.add("visible");
+      });
+    }
+
+    function closeDoneDialog() {
+      // Reset status back to in_progress
+      saveCurrentFeedback();
+      document.getElementById("done-overlay").classList.remove("visible");
+    }
+
+    // ---- Toast ----
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("visible");
+      setTimeout(() => toast.classList.remove("visible"), 2000);
+    }
+
+    // ---- Keyboard nav ----
+    document.addEventListener("keydown", (e) => {
+      // Don't capture when typing in textarea
+      if (e.target.tagName === "TEXTAREA") return;
+
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        navigate(-1);
+      } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        navigate(1);
+      }
+    });
+
+    // ---- Util ----
+    function getDownloadUri(file) {
+      if (file.data_uri) return file.data_uri;
+      if (file.data_b64) return "data:application/octet-stream;base64," + file.data_b64;
+      if (file.type === "text") return "data:text/plain;charset=utf-8," + encodeURIComponent(file.content);
+      return "#";
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ---- View switching ----
+    function switchView(view) {
+      document.querySelectorAll(".view-tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
+      document.querySelector(`[onclick="switchView('${view}')"]`).classList.add("active");
+      document.getElementById("panel-" + view).classList.add("active");
+    }
+
+    // ---- Benchmark rendering ----
+    function renderBenchmark() {
+      const data = EMBEDDED_DATA.benchmark;
+      if (!data) return;
+
+      // Show the tabs
+      document.getElementById("view-tabs").style.display = "flex";
+
+      const container = document.getElementById("benchmark-content");
+      const summary = data.run_summary || {};
+      const metadata = data.metadata || {};
+      const notes = data.notes || [];
+
+      let html = "";
+
+      // Header
+      html += "<h2 style='font-family: Poppins, sans-serif; margin-bottom: 0.5rem;'>Benchmark Results</h2>";
+      html += "<p style='color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.25rem;'>";
+      if (metadata.skill_name) html += "<strong>" + escapeHtml(metadata.skill_name) + "</strong> &mdash; ";
+      if (metadata.timestamp) html += metadata.timestamp + " &mdash; ";
+      if (metadata.evals_run) html += "Evals: " + metadata.evals_run.join(", ") + " &mdash; ";
+      html += (metadata.runs_per_configuration || "?") + " runs per configuration";
+      html += "</p>";
+
+      // Summary table
+      html += '<table class="benchmark-table">';
+
+      function fmtStat(stat, pct) {
+        if (!stat) return "—";
+        const suffix = pct ? "%" : "";
+        const m = pct ? (stat.mean * 100).toFixed(0) : stat.mean.toFixed(1);
+        const s = pct ? (stat.stddev * 100).toFixed(0) : stat.stddev.toFixed(1);
+        return m + suffix + " ± " + s + suffix;
+      }
+
+      function deltaClass(val) {
+        if (!val) return "";
+        const n = parseFloat(val);
+        if (n > 0) return "benchmark-delta-positive";
+        if (n < 0) return "benchmark-delta-negative";
+        return "";
+      }
+
+      // Discover config names dynamically (everything except "delta")
+      const configs = Object.keys(summary).filter(k => k !== "delta");
+      const configA = configs[0] || "config_a";
+      const configB = configs[1] || "config_b";
+      const labelA = configA.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const labelB = configB.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const a = summary[configA] || {};
+      const b = summary[configB] || {};
+      const delta = summary.delta || {};
+
+      html += "<thead><tr><th>Metric</th><th>" + escapeHtml(labelA) + "</th><th>" + escapeHtml(labelB) + "</th><th>Delta</th></tr></thead>";
+      html += "<tbody>";
+
+      html += "<tr><td><strong>Pass Rate</strong></td>";
+      html += "<td>" + fmtStat(a.pass_rate, true) + "</td>";
+      html += "<td>" + fmtStat(b.pass_rate, true) + "</td>";
+      html += '<td class="' + deltaClass(delta.pass_rate) + '">' + (delta.pass_rate || "—") + "</td></tr>";
+
+      // Time (only show row if data exists)
+      if (a.time_seconds || b.time_seconds) {
+        html += "<tr><td><strong>Time (s)</strong></td>";
+        html += "<td>" + fmtStat(a.time_seconds, false) + "</td>";
+        html += "<td>" + fmtStat(b.time_seconds, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.time_seconds) + '">' + (delta.time_seconds ? delta.time_seconds + "s" : "—") + "</td></tr>";
+      }
+
+      // Tokens (only show row if data exists)
+      if (a.tokens || b.tokens) {
+        html += "<tr><td><strong>Tokens</strong></td>";
+        html += "<td>" + fmtStat(a.tokens, false) + "</td>";
+        html += "<td>" + fmtStat(b.tokens, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.tokens) + '">' + (delta.tokens || "—") + "</td></tr>";
+      }
+
+      html += "</tbody></table>";
+
+      // Per-eval breakdown (if runs data available)
+      const runs = data.runs || [];
+      if (runs.length > 0) {
+        const evalIds = [...new Set(runs.map(r => r.eval_id))].sort((a, b) => a - b);
+
+        html += "<h3 style='font-family: Poppins, sans-serif; margin-bottom: 0.75rem;'>Per-Eval Breakdown</h3>";
+
+        const hasTime = runs.some(r => r.result && r.result.time_seconds != null);
+        const hasErrors = runs.some(r => r.result && r.result.errors > 0);
+
+        for (const evalId of evalIds) {
+          const evalRuns = runs.filter(r => r.eval_id === evalId);
+          const evalName = evalRuns[0] && evalRuns[0].eval_name ? evalRuns[0].eval_name : "Eval " + evalId;
+
+          html += "<h4 style='font-family: Poppins, sans-serif; margin: 1rem 0 0.5rem; color: var(--text);'>" + escapeHtml(evalName) + "</h4>";
+          html += '<table class="benchmark-table">';
+          html += "<thead><tr><th>Config</th><th>Run</th><th>Pass Rate</th>";
+          if (hasTime) html += "<th>Time (s)</th>";
+          if (hasErrors) html += "<th>Crashes During Execution</th>";
+          html += "</tr></thead>";
+          html += "<tbody>";
+
+          // Group by config and render with average rows
+          const configGroups = [...new Set(evalRuns.map(r => r.configuration))];
+          for (let ci = 0; ci < configGroups.length; ci++) {
+            const config = configGroups[ci];
+            const configRuns = evalRuns.filter(r => r.configuration === config);
+            if (configRuns.length === 0) continue;
+
+            const rowClass = ci === 0 ? "benchmark-row-with" : "benchmark-row-without";
+            const configLabel = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+            for (const run of configRuns) {
+              const r = run.result || {};
+              const prClass = r.pass_rate >= 0.8 ? "benchmark-delta-positive" : r.pass_rate < 0.5 ? "benchmark-delta-negative" : "";
+              html += '<tr class="' + rowClass + '">';
+              html += "<td>" + configLabel + "</td>";
+              html += "<td>" + run.run_number + "</td>";
+              html += '<td class="' + prClass + '">' + ((r.pass_rate || 0) * 100).toFixed(0) + "% (" + (r.passed || 0) + "/" + (r.total || 0) + ")</td>";
+              if (hasTime) html += "<td>" + (r.time_seconds != null ? r.time_seconds.toFixed(1) : "—") + "</td>";
+              if (hasErrors) html += "<td>" + (r.errors || 0) + "</td>";
+              html += "</tr>";
+            }
+
+            // Average row
+            const rates = configRuns.map(r => (r.result || {}).pass_rate || 0);
+            const avgRate = rates.reduce((a, b) => a + b, 0) / rates.length;
+            const avgPrClass = avgRate >= 0.8 ? "benchmark-delta-positive" : avgRate < 0.5 ? "benchmark-delta-negative" : "";
+            html += '<tr class="benchmark-row-avg ' + rowClass + '">';
+            html += "<td>" + configLabel + "</td>";
+            html += "<td>Avg</td>";
+            html += '<td class="' + avgPrClass + '">' + (avgRate * 100).toFixed(0) + "%</td>";
+            if (hasTime) {
+              const times = configRuns.map(r => (r.result || {}).time_seconds).filter(t => t != null);
+              html += "<td>" + (times.length ? (times.reduce((a, b) => a + b, 0) / times.length).toFixed(1) : "—") + "</td>";
+            }
+            if (hasErrors) html += "<td></td>";
+            html += "</tr>";
+          }
+          html += "</tbody></table>";
+
+          // Per-assertion detail for this eval
+          const runsWithExpectations = {};
+          for (const config of configGroups) {
+            runsWithExpectations[config] = evalRuns.filter(r => r.configuration === config && r.expectations && r.expectations.length > 0);
+          }
+          const hasAnyExpectations = Object.values(runsWithExpectations).some(runs => runs.length > 0);
+          if (hasAnyExpectations) {
+            // Collect all unique assertion texts across all configs
+            const allAssertions = [];
+            const seen = new Set();
+            for (const config of configGroups) {
+              for (const run of runsWithExpectations[config]) {
+                for (const exp of (run.expectations || [])) {
+                  if (!seen.has(exp.text)) {
+                    seen.add(exp.text);
+                    allAssertions.push(exp.text);
+                  }
+                }
+              }
+            }
+
+            html += '<table class="benchmark-table" style="margin-top: 0.5rem;">';
+            html += "<thead><tr><th>Assertion</th>";
+            for (const config of configGroups) {
+              const label = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+              html += "<th>" + escapeHtml(label) + "</th>";
+            }
+            html += "</tr></thead><tbody>";
+
+            for (const assertionText of allAssertions) {
+              html += "<tr><td>" + escapeHtml(assertionText) + "</td>";
+
+              for (const config of configGroups) {
+                html += "<td>";
+                for (const run of runsWithExpectations[config]) {
+                  const exp = (run.expectations || []).find(e => e.text === assertionText);
+                  if (exp) {
+                    const cls = exp.passed ? "benchmark-delta-positive" : "benchmark-delta-negative";
+                    const icon = exp.passed ? "\u2713" : "\u2717";
+                    html += '<span class="' + cls + '" title="Run ' + run.run_number + ': ' + escapeHtml(exp.evidence || "") + '">' + icon + "</span> ";
+                  } else {
+                    html += "— ";
+                  }
+                }
+                html += "</td>";
+              }
+              html += "</tr>";
+            }
+            html += "</tbody></table>";
+          }
+        }
+      }
+
+      // Notes
+      if (notes.length > 0) {
+        html += '<div class="benchmark-notes">';
+        html += "<h3>Analysis Notes</h3>";
+        html += "<ul>";
+        for (const note of notes) {
+          html += "<li>" + escapeHtml(note) + "</li>";
+        }
+        html += "</ul></div>";
+      }
+
+      container.innerHTML = html;
+    }
+
+    // ---- Start ----
+    init();
+    renderBenchmark();
+  </script>
+</body>
+</html>

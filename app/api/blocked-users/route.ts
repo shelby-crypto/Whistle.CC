@@ -2,9 +2,27 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/supabase/auth-helpers";
 import { db } from "@/lib/db/supabase";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 // ── GET /api/blocked-users ───────────────────────────────────────────────────
 // Returns all users blocked by Whistle for the current user.
 // Joins platform_actions → pipeline_runs → content_items for full context.
+
+// P1-18: bound the pipeline_runs scan and chunk subsequent .in() lookups.
+// Without these, a user with thousands of historical runs would attempt to
+// load the entire history and pass an unbounded list into the IN clause —
+// Postgres has no hard ceiling but Supabase rejects URLs over a few KB.
+const PIPELINE_RUN_LIMIT = 1000;
+const IN_BATCH_SIZE = 200;
+
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    out.push(arr.slice(i, i + size));
+  }
+  return out;
+}
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -20,9 +38,12 @@ export async function GET() {
       id,
       final_risk_level,
       action_agent_output,
-      content_item_id
+      content_item_id,
+      created_at
     `)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(PIPELINE_RUN_LIMIT);
 
   if (pipelineRunsError) {
     return NextResponse.json({ error: pipelineRunsError.message }, { status: 500 });
@@ -34,29 +55,48 @@ export async function GET() {
     return NextResponse.json([]);
   }
 
-  // Now safely query platform_actions with pipeline_run ownership verified
-  const { data: blockActions, error: actionsError } = await db
-    .from("platform_actions")
-    .select(`
-      id,
-      platform,
-      external_author_id,
-      executed_at,
-      reversed,
-      reversed_at,
-      reversed_by,
-      pipeline_run_id
-    `)
-    .eq("action_type", "block_sender")
-    .eq("success", true)
-    .in("pipeline_run_id", userPipelineRunIds)
-    .order("executed_at", { ascending: false });
+  // P1-18: chunk the IN clause so URL length stays bounded even when the
+  // user has the maximum number of recent runs.
+  type BlockAction = {
+    id: string;
+    platform: string;
+    external_author_id: string | null;
+    executed_at: string | null;
+    reversed: boolean | null;
+    reversed_at: string | null;
+    reversed_by: string | null;
+    pipeline_run_id: string;
+  };
+  const blockActions: BlockAction[] = [];
+  for (const batch of chunk(userPipelineRunIds, IN_BATCH_SIZE)) {
+    const { data, error: actionsError } = await db
+      .from("platform_actions")
+      .select(`
+        id,
+        platform,
+        external_author_id,
+        executed_at,
+        reversed,
+        reversed_at,
+        reversed_by,
+        pipeline_run_id
+      `)
+      .eq("action_type", "block_sender")
+      .eq("success", true)
+      .in("pipeline_run_id", batch)
+      .order("executed_at", { ascending: false });
 
-  if (actionsError) {
-    return NextResponse.json({ error: actionsError.message }, { status: 500 });
+    if (actionsError) {
+      return NextResponse.json({ error: actionsError.message }, { status: 500 });
+    }
+    if (data) blockActions.push(...(data as BlockAction[]));
   }
+  // Re-sort across batches.
+  blockActions.sort((a, b) =>
+    (b.executed_at ?? "").localeCompare(a.executed_at ?? "")
+  );
 
-  if (!blockActions?.length) {
+  if (!blockActions.length) {
     return NextResponse.json([]);
   }
 
@@ -65,14 +105,19 @@ export async function GET() {
     .map((pr) => pr.content_item_id)
     .filter(Boolean);
 
-  const { data: contentItems } = await db
-    .from("content_items")
-    .select("id, content, author_handle")
-    .in("id", contentItemIds);
+  type ContentItem = { id: string; content: string | null; author_handle: string | null };
+  const contentItems: ContentItem[] = [];
+  for (const batch of chunk(contentItemIds, IN_BATCH_SIZE)) {
+    const { data } = await db
+      .from("content_items")
+      .select("id, content, author_handle")
+      .in("id", batch);
+    if (data) contentItems.push(...(data as ContentItem[]));
+  }
 
   // Build lookup maps
   const pipelineRunMap = new Map(userPipelineRuns.map((pr) => [pr.id, pr]));
-  const contentItemMap = new Map((contentItems ?? []).map((ci) => [ci.id, ci]));
+  const contentItemMap = new Map(contentItems.map((ci) => [ci.id, ci]));
   const userPipelineRunIdSet = new Set(userPipelineRunIds);
 
   // Assemble response — only include blocks from this user's runs

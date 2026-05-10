@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pollAllAccounts } from "@/lib/polling/poller";
 import { withLock } from "@/lib/polling/lock";
+// P1-22: opt every mutating/state-bearing API route out of static
+// optimization and onto the Node runtime so writes are never cached or
+// silently routed to the edge runtime where the Supabase client misbehaves.
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 // ── Vercel Cron-triggered poll ──────────────────────────────────────────────
 // Runs on a schedule (configured in vercel.json — currently every 5 minutes).
