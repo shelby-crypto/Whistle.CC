@@ -105,11 +105,15 @@ export function useUserSettings(): UseUserSettings {
   // the freshest value even if many updates fire before the timer pops.
   const latestRef = useRef<UserSettings>(DEFAULT_USER_SETTINGS);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Token used to distinguish writes-from-this-client from realtime events
-  // originating elsewhere. We bump it on every local mutation; the realtime
-  // handler only applies a payload if the row's `updated_at` differs from
-  // our last-observed local timestamp.
-  const lastLocalWriteRef = useRef<string | null>(null);
+  // Echo-filter strategy: every realtime event is compared (by content) to
+  // our local `latestRef`. If the incoming row is byte-identical to the
+  // state we already hold, we skip the setSettings — that's our own echo
+  // (or a remote write that converged on the same value, which is a no-op
+  // anyway). Anything that differs is a real remote update and gets
+  // applied. Earlier code tried to do this by comparing the server's
+  // `updated_at` to a client-clock timestamp; those values are generated
+  // on different machines and never matched, so the filter never tripped
+  // and every own-write produced a redundant re-render.
 
   // ── Load on mount ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -195,7 +199,7 @@ export function useUserSettings(): UseUserSettings {
   // ── Realtime subscription ─────────────────────────────────────────────
   // Migration 006 sets REPLICA IDENTITY FULL on user_settings so the
   // payload carries the full row. We accept any row matching our user_id
-  // and drop our own echoes by comparing updated_at to lastLocalWriteRef.
+  // and drop own-write echoes via the content-equality check below.
   useEffect(() => {
     if (!userId) return;
     const channel = supabase
@@ -218,22 +222,25 @@ export function useUserSettings(): UseUserSettings {
             | null;
           if (!row) return;
 
-          // Skip echoes of our own writes — Supabase realtime emits the
-          // event after the row's commit even if we initiated it.
-          if (
-            row.updated_at &&
-            lastLocalWriteRef.current &&
-            row.updated_at === lastLocalWriteRef.current
-          ) {
-            return;
-          }
-
           const merged = enforceInvariants(
             mergeWithDefaults({
               socialListening: row.social_listening,
               autoProtection: row.auto_protection,
             }),
           );
+
+          // Echo filter: if the incoming row matches what we already hold
+          // locally, it's our own write coming back (or a remote write
+          // that converged on the same value — apply-or-skip doesn't
+          // matter in that case). Skipping prevents the toggle-flicker
+          // bug where the realtime echo overwrites a freshly-clicked
+          // optimistic state with the same value ~250 ms later.
+          if (
+            JSON.stringify(merged) === JSON.stringify(latestRef.current)
+          ) {
+            return;
+          }
+
           latestRef.current = merged;
           setSettings(merged);
         },
@@ -249,8 +256,7 @@ export function useUserSettings(): UseUserSettings {
   const flush = useCallback(async () => {
     if (!userId) return;
     const next = enforceInvariants(latestRef.current);
-    const writeStartedAt = new Date().toISOString();
-    lastLocalWriteRef.current = writeStartedAt;
+    // No client-clock token is set here — see the realtime handler comment.
     const { error: writeError } = await supabase
       .from("user_settings")
       .update({

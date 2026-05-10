@@ -82,12 +82,13 @@ export default function LoginPage() {
         throw new Error("Verification succeeded but no session was created. Please try again.");
       }
 
-      // Ensure user row exists in our public.users table
-      await ensureUserRow(session.user.id, session.user.email ?? null);
-
-      // Set the session cookie so the server-side middleware recognizes the user.
-      // The Supabase browser client stores the session in localStorage, but our
-      // middleware reads from cookies — we need to bridge the two.
+      // Set the session cookie FIRST so the server-side middleware recognizes
+      // the user. The Supabase browser client stores the session in
+      // localStorage, but our middleware/route handlers read from cookies —
+      // this endpoint bridges the two.
+      //
+      // Order matters: ensure-user requires a verified session cookie, so it
+      // must run after set-session.
       await fetch("/api/auth/set-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -104,6 +105,9 @@ export default function LoginPage() {
           },
         }),
       });
+
+      // Ensure user row exists in our public.users table
+      await ensureUserRow(session.user.id, session.user.email ?? null);
 
       // Redirect to dashboard
       window.location.href = "/";

@@ -22,6 +22,7 @@ export async function runClassifier(
     };
   }
 
+  // PRIVACY: don't log `userMessage` — it carries the raw user content.
   const userMessage = JSON.stringify({ content, context });
   console.log("[classifier] Calling Anthropic API with model claude-haiku-4-5-20251001...");
 

@@ -72,7 +72,9 @@ export async function POST() {
             return NextResponse.json({ error: "DB update failed: " + updateErr.message }, { status: 500 });
           }
 
-          console.log(`[fix-twitter-id] Patched platformUserId=${id} username=${username} for user=${userId}`);
+          // PRIVACY: don't log the Twitter username or the Supabase user UUID.
+          // A success counter is enough to confirm the route fired.
+          console.log("[fix-twitter-id] Patched platformUserId for caller");
           return NextResponse.json({ ok: true, platformUserId: id, username });
         }
       } else {

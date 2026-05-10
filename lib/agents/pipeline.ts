@@ -21,11 +21,24 @@ export async function runPipeline(
   // ── Stage 1: Classifier ────────────────────────────────────────────────────
   let classifierResult: ClassifierOutput | PipelineError;
   try {
-    console.log("[pipeline] Running classifier on content:", content.slice(0, 100));
+    // PRIVACY: Never log raw user content. Whistle's premise is "content
+    // hidden by default for user wellbeing" — slurs, threats, and doxxing
+    // details must not flow into Vercel logs. Log only counters/metadata.
+    console.log(
+      `[pipeline] Running classifier (content_chars=${content.length}, direction=${context.direction}, reach=${context.reach}, velocity=${context.velocity})`,
+    );
     classifierResult = await runClassifier(content, context);
-    console.log("[pipeline] Classifier result:", isPipelineError(classifierResult) ? `ERROR: ${JSON.stringify(classifierResult)}` : `risk_level=${classifierResult.risk_level}`);
+    console.log(
+      "[pipeline] Classifier result:",
+      isPipelineError(classifierResult)
+        ? `ERROR(${classifierResult.error})`
+        : `risk_level=${classifierResult.risk_level}`,
+    );
   } catch (err) {
-    console.error("[pipeline] Classifier threw unexpectedly:", err);
+    // Log only the error class/name — the message can include excerpted
+    // model output or chunked user content.
+    const errName = err instanceof Error ? err.name : "UnknownError";
+    console.error(`[pipeline] Classifier threw unexpectedly: ${errName}`);
     classifierResult = {
       error: "classifier_threw_unexpectedly",
       stage: "classifier",
@@ -34,7 +47,11 @@ export async function runPipeline(
   }
 
   if (isPipelineError(classifierResult)) {
-    console.error("[pipeline] Classifier failed, skipping remaining stages:", JSON.stringify(classifierResult));
+    // Log only the typed error code — `details` may contain raw model
+    // output or excerpted user content.
+    console.error(
+      `[pipeline] Classifier failed, skipping remaining stages: ${classifierResult.error}`,
+    );
     return {
       classifier: classifierResult,
       actionAgent: {

@@ -12,7 +12,26 @@ import { db } from "@/lib/db/supabase";
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/";
+
+  // SECURITY: `next` is attacker-controlled. Earlier versions fed it
+  // directly into `NextResponse.redirect(new URL(next, request.url))`,
+  // which made `?next=https://evil.example` a working open-redirect — an
+  // attacker could craft a login link, the user would authenticate, and
+  // the freshly-cookied browser would be bounced off-domain.
+  //
+  // Only accept relative path-only redirects: must start with a single
+  // `/` (rejects scheme-relative `//evil.example`) and must not contain
+  // `://` anywhere (rejects `/foo?bar=://evil` and similar curiosities).
+  // Anything else collapses to "/".
+  const rawNext = searchParams.get("next");
+  const next =
+    rawNext &&
+    rawNext.startsWith("/") &&
+    !rawNext.startsWith("//") &&
+    !rawNext.includes("://") &&
+    !rawNext.includes("\\")
+      ? rawNext
+      : "/";
 
   if (!code) {
     return NextResponse.redirect(new URL("/login?error=missing_code", request.url));
