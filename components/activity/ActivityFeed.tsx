@@ -133,19 +133,18 @@ export default function ActivityFeed({
   const tiersToRender: Tier[] =
     filter === "all" ? [...TIER_ORDER] : [filter];
 
-  const handleOpen = (item: ActivityItem) => {
-    router.push(`/evidence/${item.id}`);
-  };
   /**
-   * Critical-tier rows route to the dedicated Evidence Preservation view at
-   * /activity/[id]/evidence. We forward the active tier filter via `?tier=`
-   * so the back link on that view returns the athlete to the same Activity
-   * tab they came from (Critical → Critical, All → All).
+   * Row click and the Critical-tier "Save evidence" button both route to the
+   * dedicated Evidence Preservation view at /activity/[id]/evidence. We
+   * forward the active tier filter via `?tier=` so the back link on that view
+   * returns the athlete to the same Activity tab they came from
+   * (Critical → Critical, All → All).
    */
-  const handleSaveEvidence = (item: ActivityItem) => {
+  const handleOpen = (item: ActivityItem) => {
     const qs = filter !== "all" ? `?tier=${filter}` : "";
     router.push(`/activity/${item.id}/evidence${qs}`);
   };
+  const handleSaveEvidence = handleOpen;
   const handleRate = (item: ActivityItem) => {
     setRateItem(item);
   };
