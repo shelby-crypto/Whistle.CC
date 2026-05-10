@@ -5,6 +5,7 @@ import { db } from "@/lib/db/supabase";
 import { encryptTokenForStorage } from "@/lib/db/encrypt";
 
 const IG_GRAPH = "https://graph.instagram.com";
+const STATE_COOKIE = "whistle_link_state";
 
 // ── Instagram short-lived → long-lived token exchange (60 days) ────────────
 // Instagram Login issues short-lived tokens (1 hour). Exchange for long-lived
@@ -30,83 +31,91 @@ async function exchangeInstagramToken(shortLivedToken: string): Promise<{
   }
 }
 
-// ── Upsert user + store encrypted platform token in Supabase ──────────────
-// Returns the Supabase user UUID on success, null on any failure.
-async function upsertUserAndToken(params: {
-  email: string | null;
-  name: string | null;
+// ── Consume an OAuth link state ─────────────────────────────────────────────
+// Reads the `whistle_link_state` cookie, looks up + deletes the matching row
+// in `oauth_link_states`, validates expiry and platform, and returns the
+// authenticated user's app-level UUID. Returns null on any failure.
+//
+// This is the ONLY way upsertPlatformToken below resolves a user_id —
+// OAuth no longer creates users from scratch. Earlier code paths that
+// fell back to email-upsert or fresh-user creation when no link state was
+// present have been removed (they orphaned `users` rows whose `auth_id`
+// never matched any Supabase Auth user).
+async function consumeLinkState(
+  expectedPlatform: "twitter" | "instagram",
+): Promise<string | null> {
+  const cookieStore = await cookies();
+  const stateValue = cookieStore.get(STATE_COOKIE)?.value;
+  if (!stateValue) {
+    console.error("[auth] OAuth callback without whistle_link_state cookie");
+    return null;
+  }
+
+  // Always clear the cookie — single-use semantics regardless of outcome.
+  cookieStore.delete(STATE_COOKIE);
+
+  // Atomic single-use consumption: DELETE … RETURNING ensures a concurrent
+  // duplicate request can't reuse the same state.
+  const { data, error } = await db
+    .from("oauth_link_states")
+    .delete()
+    .eq("state", stateValue)
+    .select("user_id, platform, expires_at")
+    .maybeSingle();
+
+  if (error) {
+    console.error("[auth] oauth_link_states consume failed:", error.message);
+    return null;
+  }
+  if (!data) {
+    console.error("[auth] No matching oauth_link_state row — replay or expired");
+    return null;
+  }
+  if (data.platform !== expectedPlatform) {
+    console.error(
+      `[auth] oauth_link_state platform mismatch: row=${data.platform} expected=${expectedPlatform}`,
+    );
+    return null;
+  }
+  if (new Date(data.expires_at).getTime() < Date.now()) {
+    console.error("[auth] oauth_link_state expired");
+    return null;
+  }
+
+  return data.user_id;
+}
+
+// ── Store an encrypted platform token for an existing user ──────────────────
+// Caller is responsible for resolving `userId` from the link-state map.
+// Returns true on success, false on any DB failure.
+async function upsertPlatformToken(params: {
+  userId: string;
   platform: "twitter" | "instagram";
   platformUserId: string;
   platformUsername: string;
   accessToken: string;
   refreshToken: string | null;
   expiresAt: Date | null;
-  // When the user is already signed in with another platform, pass their
-  // existing Supabase UUID here so we link the new token to the same user
-  // rather than creating a new one.
-  existingUserId?: string | null;
-}): Promise<string | null> {
-  // ── 1. Resolve the Supabase user UUID ────────────────────────────────────
-  let userId: string | null = null;
-
-  if (params.existingUserId) {
-    // Linking a second platform to an already-authenticated user.
-    // Skip all user-creation logic — just use the existing UUID.
-    userId = params.existingUserId;
-    if (params.name) {
-      await db.from("users").update({ name: params.name }).eq("id", userId);
-    }
-  } else if (params.email) {
-    const { data: user, error } = await db
-      .from("users")
-      .upsert(
-        { email: params.email, name: params.name },
-        { onConflict: "email", ignoreDuplicates: false }
-      )
-      .select("id")
-      .single();
-
-    if (error || !user) {
-      console.error("[auth] Failed to upsert user by email:", error?.message);
-      return null;
-    }
-    userId = user.id;
-  } else {
-    // No email (Twitter / Instagram) — look up by existing platform token
-    const { data: existing } = await db
-      .from("platform_tokens")
-      .select("user_id")
-      .eq("platform", params.platform)
-      .eq("platform_user_id", params.platformUserId)
-      .maybeSingle();
-
-    if (existing?.user_id) {
-      userId = existing.user_id;
-      await db.from("users").update({ name: params.name }).eq("id", userId);
-    } else {
-      const { data: newUser, error } = await db
-        .from("users")
-        .insert({ email: null, name: params.name })
-        .select("id")
-        .single();
-
-      if (error || !newUser) {
-        console.error("[auth] Failed to create user:", error?.message);
-        return null;
-      }
-      userId = newUser.id;
-    }
-  }
-
-  // ── 2. Encrypt and store the platform token ───────────────────────────────
+  name: string | null;
+}): Promise<boolean> {
   const accessEncrypted = encryptTokenForStorage(params.accessToken);
   const refreshEncrypted = params.refreshToken
     ? encryptTokenForStorage(params.refreshToken)
     : null;
 
+  // Best-effort: keep `users.name` populated if the OAuth provider returned
+  // one and we don't already have it. Don't overwrite a non-null value.
+  if (params.name) {
+    await db
+      .from("users")
+      .update({ name: params.name })
+      .eq("id", params.userId)
+      .is("name", null);
+  }
+
   const { error: tokenError } = await db.from("platform_tokens").upsert(
     {
-      user_id: userId,
+      user_id: params.userId,
       platform: params.platform,
       platform_user_id: params.platformUserId,
       platform_username: params.platformUsername,
@@ -116,15 +125,15 @@ async function upsertUserAndToken(params: {
       status: "active",
       updated_at: new Date().toISOString(),
     },
-    { onConflict: "user_id,platform" }
+    { onConflict: "user_id,platform" },
   );
 
   if (tokenError) {
     console.error("[auth] Failed to upsert platform token:", tokenError.message);
-    return null;
+    return false;
   }
 
-  return userId;
+  return true;
 }
 
 export const authConfig: NextAuthConfig = {
@@ -253,6 +262,10 @@ export const authConfig: NextAuthConfig = {
     },
   ],
 
+  // The `jwt` strategy keeps NextAuth from needing a DB adapter. The cookies
+  // it writes are not used as identity anywhere in this app — Supabase Auth
+  // is the sole identity source (see lib/supabase/auth-helpers.ts). NextAuth
+  // exists in this codebase only to drive the platform OAuth grant flows.
   session: { strategy: "jwt" },
 
   // NextAuth v5 reads AUTH_SECRET; fall back to NEXTAUTH_SECRET for compatibility.
@@ -268,17 +281,19 @@ export const authConfig: NextAuthConfig = {
       if (!account) return false;
 
       try {
-        // Read the linking cookie set by prepareLinkPlatform() server action.
-        // This is how we pass the existing user's UUID across the OAuth redirect
-        // round-trip — NextAuth v5 does NOT carry the existing JWT into the
-        // jwt callback during a new sign-in, so cookies are the only option.
-        const cookieStore = await cookies();
-        const existingUserId = cookieStore.get("whistle_link_user_id")?.value ?? null;
-        if (existingUserId) {
-          cookieStore.delete("whistle_link_user_id");
+        const platform = account.provider as "twitter" | "instagram";
+
+        // ── Resolve which Supabase user this OAuth grant links to ─────────
+        // The user_id MUST come from a server-side state row keyed on a
+        // single-use UUID. No linking row → no token storage. This closes
+        // the previous orphan-user creation path entirely.
+        const userId = await consumeLinkState(platform);
+        if (!userId) {
+          // consumeLinkState already logged the specific reason.
+          return false;
         }
 
-        const platform = account.provider as "twitter" | "instagram";
+        // ── Resolve the platform token + identifiers ──────────────────────
         const accessToken = account.access_token ?? "";
         let finalAccessToken = accessToken;
         let expiresAt: Date | null = null;
@@ -322,7 +337,7 @@ export const authConfig: NextAuthConfig = {
               (rawProfile?.username as string) ??
               user.name ??
               "";
-            console.log("[auth] Twitter platformUserId from profile:", platformUserId);
+            console.log("[auth] Twitter platformUserId from profile");
           } else {
             // Profile was missing or returned an error (e.g. 503 from Twitter's userinfo endpoint)
             // Retry /users/me up to 3 times before giving up
@@ -340,7 +355,7 @@ export const authConfig: NextAuthConfig = {
                   if (/^\d+$/.test(resolvedId)) {
                     platformUserId = resolvedId;
                     platformUsername = meData.data?.username ?? user.name ?? "";
-                    console.log(`[auth] Twitter platformUserId from /users/me (attempt ${attempt}):`, platformUserId);
+                    console.log(`[auth] Twitter platformUserId from /users/me (attempt ${attempt})`);
                     fetchedValidId = true;
                     break;
                   }
@@ -369,27 +384,24 @@ export const authConfig: NextAuthConfig = {
           }
         }
 
-        const supabaseId = await upsertUserAndToken({
-          email: user.email ?? null,
-          name: user.name ?? null,
+        // ── Persist the platform_tokens row against the verified user ─────
+        const ok = await upsertPlatformToken({
+          userId,
           platform,
           platformUserId,
           platformUsername,
           accessToken: finalAccessToken,
           refreshToken: account.refresh_token ?? null,
           expiresAt,
-          existingUserId,
+          name: user.name ?? null,
         });
 
-        if (!supabaseId) {
-          console.error("[auth] upsertUserAndToken returned null — blocking sign-in");
-          return false;
-        }
+        if (!ok) return false;
 
-        // Replace the platform user ID with the Supabase UUID so
-        // token.id (and session.user.id) is the internal UUID, not
-        // the platform's own identifier.
-        user.id = supabaseId;
+        // user.id flows into the NextAuth session JWT below. We set it to
+        // the Supabase user_id for legacy compatibility; nothing in this
+        // app reads it.
+        user.id = userId;
         return true;
       } catch (err) {
         console.error("[auth] signIn callback error:", err);
@@ -398,9 +410,6 @@ export const authConfig: NextAuthConfig = {
     },
 
     async jwt({ token, user }) {
-      // Account linking is handled in the signIn callback via a linking cookie.
-      // By the time jwt runs, user.id is already the correct Supabase UUID
-      // (either the existing user if linking, or a freshly created one).
       if (user?.id) {
         token.id = user.id;
       }

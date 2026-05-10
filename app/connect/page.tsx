@@ -393,7 +393,13 @@ export default function ConnectPage() {
             icon={twitterIcon}
             token={getToken("twitter")}
             onConnect={async () => {
-              await prepareLinkPlatform();
+              try {
+                await prepareLinkPlatform("twitter");
+              } catch {
+                // Session likely expired — bounce to login then back here.
+                window.location.href = "/login?next=/connect";
+                return;
+              }
               signIn("twitter", { callbackUrl: "/connect" });
             }}
             onDisconnect={() => requestDisconnect("twitter", "Twitter / X")}
@@ -404,7 +410,12 @@ export default function ConnectPage() {
             icon={instagramIcon}
             token={getToken("instagram")}
             onConnect={async () => {
-              await prepareLinkPlatform();
+              try {
+                await prepareLinkPlatform("instagram");
+              } catch {
+                window.location.href = "/login?next=/connect";
+                return;
+              }
               signIn("instagram", { callbackUrl: "/connect" });
             }}
             onDisconnect={() => requestDisconnect("instagram", "Instagram")}

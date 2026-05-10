@@ -9,7 +9,7 @@ Each finding cites real file paths and line numbers. Fix from top to bottom: eve
 | Priority | Count | Status |
 |---|---|---|
 | **P0** | 9 | **All fixed 2026-05-09** ✓ — see annotations below |
-| **P1** | 22 | Polling scalability, webhook idempotency, missing rate limiting, multiple bugs in cursors/pagination/realtime |
+| **P1** | 22 | 2 fixed (P1-1, P1-2 — auth/middleware close-out). Remaining: polling scalability, webhook idempotency, missing rate limiting, cursor/pagination/realtime bugs. |
 | **P2** | 16 | Service-role multi-tenant fragility, code duplication, oversized client pages, error envelope inconsistency |
 | **P3** | 12 | Logging hygiene, dead code, naming, minor cleanup |
 
@@ -85,14 +85,16 @@ Each finding cites real file paths and line numbers. Fix from top to bottom: eve
 
 ## P1 — Serious correctness, scalability, and missing security controls
 
-### P1-1. NextAuth + Supabase Auth model has no single source of truth
+### P1-1. ~~NextAuth + Supabase Auth model has no single source of truth~~ — **FIXED 2026-05-09**
 **File:** `auth.ts:130-415`, `app/login/page.tsx`, `lib/supabase/auth-helpers.ts`, `app/actions/prepare-link.ts:22-28`
+**Fix applied:** NextAuth is now strictly an OAuth-grant runner — it never identifies users. (1) Added migration `012_oauth_link_states.sql` with a server-side state map (`oauth_link_states` table). (2) `prepareLinkPlatform(platform)` inserts a single-use TTL-bound row with the authenticated user's `users.id` and sets a `whistle_link_state` cookie holding only the opaque state UUID — the user_id never travels client-side. (3) The `auth.ts` signIn callback consumes the state via `DELETE … RETURNING` (single-use, atomic), validates expiry and platform match, and refuses any sign-in without a valid state. (4) Stripped the email-upsert and fresh-user-creation fallbacks from `upsertUserAndToken` — OAuth no longer creates users. (5) Wrapped `app/api/auth/[...nextauth]/route.ts` to require a verified Supabase session on every NextAuth path except the OAuth callback, CSRF, and error pages (those are handled by the state-map check). (6) `app/connect/page.tsx` updated to handle session-expired errors from `prepareLinkPlatform` by bouncing through `/login?next=/connect`.
 **Problem:** Two parallel auth systems coexist. Supabase Auth handles primary sign-in (email OTP). NextAuth (`auth.ts`) handles only platform OAuth (Twitter / Instagram) and writes `platform_tokens`. The bridge is a one-shot `whistle_link_user_id` cookie set by `prepareLinkPlatform` and consumed by NextAuth's `signIn` callback. If a user hits `/api/auth/[...nextauth]/...` without going through `prepareLinkPlatform` first (direct OAuth start, expired Supabase session, attacker-induced redirect), `existingUserId` is null and the callback creates a *new* `users` row with no `auth_id` — orphaned from email login.
 **Why it matters:** Orphan user rows; users unable to reconnect; potential to end up with two `users` rows for the same email (the email path uses `onConflict: "email"` but the OAuth path inserts with `email: null` so no conflict triggers).
 **Fix:** Drop NextAuth as a session provider. Keep its OAuth providers only for the platform-token grant flow, and explicitly require a Supabase session at the start of OAuth (return 401 from `/api/auth/[...nextauth]/...` when no Supabase user). Replace the linking cookie with a server-side state map keyed on the OAuth `state` param.
 
-### P1-2. Middleware does no signature verification, doesn't refresh sessions
+### P1-2. ~~Middleware does no signature verification, doesn't refresh sessions~~ — **FIXED 2026-05-09**
 **File:** `middleware.ts:33-60`
+**Fix applied:** New helper `lib/supabase/jwt.ts` provides Edge-compatible JWT verification (HS256 via `jose`) and a refresh-token grant (`/auth/v1/token?grant_type=refresh_token`) using raw `fetch`. Middleware now (1) verifies the access_token signature against `SUPABASE_JWT_SECRET` on every protected request, (2) attempts a server-side refresh-token swap when the token is valid-but-expired and writes the refreshed session back to the cookie before allowing the request through, (3) clears the cookie and redirects to `/login?next=...` on signature failure, expiry without refresh, or refresh failure. Forged cookies no longer pass middleware; expired sessions seamlessly refresh server-side; `jose@^6.1.3` added as an explicit dependency (it was previously only available via next-auth transitive resolution). Adds new env requirement: `SUPABASE_JWT_SECRET` (Supabase project Settings → API → "JWT Secret"; server-only — no `NEXT_PUBLIC` prefix).
 **Problem:** Middleware checks the cookie *exists*, JSON-parses it, looks for `access_token`. Never verifies the JWT or that `expires_at` hasn't been forged. Expiry is allowed without enforcement. The comment says "Don't hard redirect here as the Supabase client may auto-refresh" — but middleware never *initiates* a refresh.
 **Why it matters:** Forged cookies pass middleware (combine with P0-1). A returning user with an expired access_token but valid refresh_token gets to the page; subsequent `/api/...` calls 401 because `getCurrentUser` can't validate. Inconsistent gating.
 **Fix:** Verify the JWT signature in middleware with the Supabase JWT secret (Edge-compatible JOSE libs are ~30KB). Either redirect on expiry or call `supabase.auth.refreshSession()` server-side.

@@ -1,69 +1,133 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  refreshSession,
+  serializeSessionCookie,
+  verifyAccessToken,
+} from "@/lib/supabase/jwt";
 
 /**
- * Auth middleware — redirects unauthenticated users to /login.
+ * Auth middleware — verifies Supabase JWTs and refreshes expired sessions.
  *
- * Checks for the Supabase Auth session cookie. If missing or expired,
- * redirects to the login page. Public routes (login, auth callbacks,
- * NextAuth endpoints, static assets) are exempt.
+ * Earlier versions only checked that an `sb-<ref>-auth-token` cookie EXISTED
+ * and was JSON-parseable. They never verified the JWT signature, so a
+ * forged cookie passed middleware (and pre-P0-1 was then trusted by route
+ * handlers). They also noted expiry but did nothing about it, leaving
+ * users in a "page loads, then every API call 401s" half-state.
+ *
+ * The new flow:
+ *   1. If the path is public, pass through.
+ *   2. If no cookie, redirect to /login (preserving `next`).
+ *   3. Parse the cookie (Supabase stores the session as JSON).
+ *   4. Verify the access_token signature with SUPABASE_JWT_SECRET via jose.
+ *      - If the signature is invalid (forged / tampered), redirect to /login.
+ *      - If the token is expired but the cookie has a refresh_token, call
+ *        Supabase's `/auth/v1/token?grant_type=refresh_token` and write the
+ *        refreshed session back to the cookie before allowing the request
+ *        through. If refresh fails, redirect to /login.
+ *      - If the token is valid, pass through.
+ *
+ * Edge runtime: uses jose for HS256 verification and raw fetch for the
+ * refresh-token grant. No Node `crypto` and no Supabase JS SDK.
  */
-export function middleware(request: NextRequest) {
+
+const PUBLIC_PATHS = [
+  "/login",
+  "/auth",         // Supabase auth callbacks
+  "/api/auth",     // NextAuth + our auth endpoints
+  "/api/webhook",  // Meta webhook callbacks (signature-verified, unauthenticated)
+  "/api/cron",     // Vercel cron jobs (secured by CRON_SECRET)
+  "/_next",        // Next.js internals
+  "/favicon.ico",
+];
+
+function isPublic(pathname: string): boolean {
+  return PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+}
+
+function redirectToLogin(request: NextRequest): NextResponse {
+  const loginUrl = new URL("/login", request.url);
+  loginUrl.searchParams.set("next", request.nextUrl.pathname);
+  return NextResponse.redirect(loginUrl);
+}
+
+export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
-  // Public routes that don't require authentication
-  const publicPaths = [
-    "/login",
-    "/auth",           // Supabase auth callbacks
-    "/api/auth",       // Both NextAuth and our auth endpoints
-    "/api/webhook",    // Meta webhook callbacks (unauthenticated)
-    "/api/cron",       // Vercel cron jobs (secured by CRON_SECRET)
-    "/_next",          // Next.js internals
-    "/favicon.ico",
-  ];
-
-  if (publicPaths.some((p) => pathname.startsWith(p))) {
+  if (isPublic(pathname)) {
     return NextResponse.next();
   }
 
-  // Check for Supabase Auth session cookie
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const projectRef = supabaseUrl ? new URL(supabaseUrl).hostname.split(".")[0] : "";
+  if (!supabaseUrl) {
+    // Misconfigured deploy — don't lock everyone out, but also don't pretend
+    // they're authenticated. Redirect to /login; the login page will surface
+    // the env error.
+    return redirectToLogin(request);
+  }
+  const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
   const cookieName = `sb-${projectRef}-auth-token`;
 
   const sessionCookie = request.cookies.get(cookieName)?.value;
-
   if (!sessionCookie) {
-    // No session — redirect to login
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("next", pathname);
-    return NextResponse.redirect(loginUrl);
+    return redirectToLogin(request);
   }
 
-  // Basic session validation (check it's parseable and has an access_token)
+  // ── Parse the session cookie ────────────────────────────────────────────
+  let parsed: { access_token?: string; refresh_token?: string } | null = null;
   try {
-    const session = JSON.parse(sessionCookie);
-    if (!session?.access_token) {
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-
-    // Check if token has expired
-    if (session.expires_at && session.expires_at * 1000 < Date.now()) {
-      // Token expired — let the page handle refresh or redirect
-      // Don't hard redirect here as the Supabase client may auto-refresh
-    }
+    parsed = JSON.parse(sessionCookie);
   } catch {
-    // Invalid cookie
-    const loginUrl = new URL("/login", request.url);
-    return NextResponse.redirect(loginUrl);
+    // Cookie isn't even JSON — treat as unauthenticated.
+    const res = redirectToLogin(request);
+    res.cookies.delete(cookieName);
+    return res;
   }
 
-  return NextResponse.next();
+  const accessToken = parsed?.access_token ?? "";
+  const refreshToken = parsed?.refresh_token ?? "";
+
+  // ── Verify the access_token signature ───────────────────────────────────
+  const status = await verifyAccessToken(accessToken);
+
+  if (status.kind === "valid") {
+    return NextResponse.next();
+  }
+
+  if (status.kind === "expired") {
+    // Try to swap the refresh_token for a fresh session.
+    if (!refreshToken) {
+      const res = redirectToLogin(request);
+      res.cookies.delete(cookieName);
+      return res;
+    }
+    const refreshed = await refreshSession(refreshToken);
+    if (!refreshed) {
+      const res = redirectToLogin(request);
+      res.cookies.delete(cookieName);
+      return res;
+    }
+    // Successfully refreshed — write the new session back to the cookie
+    // and pass the request through.
+    const res = NextResponse.next();
+    res.cookies.set(cookieName, serializeSessionCookie(refreshed), {
+      path: "/",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+    return res;
+  }
+
+  // status.kind === "invalid" — forged, tampered, or unparseable.
+  console.warn(`[middleware] Rejecting auth cookie: ${status.reason}`);
+  const res = redirectToLogin(request);
+  res.cookies.delete(cookieName);
+  return res;
 }
 
 export const config = {
-  // Match all routes except static files and images
+  // Match all routes except static files and images.
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
