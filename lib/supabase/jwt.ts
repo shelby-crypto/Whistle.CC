@@ -1,30 +1,55 @@
-import { jwtVerify } from "jose";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 
 /**
  * Edge-compatible Supabase JWT helpers.
  *
  * These run inside Next.js middleware (Edge runtime) and so cannot use the
- * Supabase JS SDK or the Node `crypto` module. They use `jose` for HS256
- * signature verification and raw `fetch` for the refresh-token grant.
+ * Supabase JS SDK or the Node `crypto` module. They use `jose` for JWT
+ * verification and raw `fetch` for the refresh-token grant.
  *
- * SUPABASE_JWT_SECRET is the symmetric secret Supabase uses to sign access
- * tokens. Find it in your Supabase project: Settings → API → "JWT Secret".
- * It is server-only — do NOT prefix with NEXT_PUBLIC.
+ * SIGNING-KEY MODEL
+ * Supabase has been migrating projects from a single shared HS256 secret
+ * to asymmetric per-project signing keys (ES256 / RS256) with rotation.
+ * Newer projects publish their public keys at
+ *
+ *     ${NEXT_PUBLIC_SUPABASE_URL}/auth/v1/.well-known/jwks.json
+ *
+ * which exposes both the current signing key and any previous-not-yet-
+ * revoked or standby keys, each tagged with a `kid`. We use jose's
+ * `createRemoteJWKSet` to pick the right verification key per token —
+ * this works for ES256, RS256, AND legacy HS256 (when Supabase exposes
+ * the legacy secret as a JWK), so this single code path covers every
+ * project state we might encounter.
+ *
+ * The JWKS fetcher in `jose` caches results per process for the
+ * `cacheMaxAge` we pass below, with a `cooldownDuration` between miss
+ * refreshes — so we don't hammer Supabase's well-known endpoint on every
+ * middleware invocation.
+ *
+ * No SUPABASE_JWT_SECRET env var is needed.
  */
 
-let cachedSecret: Uint8Array | null = null;
-function getJwtSecretBytes(): Uint8Array {
-  if (cachedSecret) return cachedSecret;
-  const secret = process.env.SUPABASE_JWT_SECRET;
-  if (!secret) {
+let jwksCache: ReturnType<typeof createRemoteJWKSet> | null = null;
+
+function getJWKS(): ReturnType<typeof createRemoteJWKSet> {
+  if (jwksCache) return jwksCache;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) {
     throw new Error(
-      "[jwt] SUPABASE_JWT_SECRET is not set. " +
-        "Find it in Supabase project Settings → API → 'JWT Secret' " +
-        "and add it to .env.local + Vercel project env vars.",
+      "[jwt] NEXT_PUBLIC_SUPABASE_URL is not set — cannot derive JWKS endpoint",
     );
   }
-  cachedSecret = new TextEncoder().encode(secret);
-  return cachedSecret;
+  jwksCache = createRemoteJWKSet(
+    new URL("/auth/v1/.well-known/jwks.json", supabaseUrl),
+    {
+      // Cache JWKS for 10 minutes; on signature failure, jose will refresh
+      // (subject to cooldown) before giving up — that handles the "key
+      // rotated mid-request" edge case automatically.
+      cacheMaxAge: 10 * 60 * 1000,
+      cooldownDuration: 30 * 1000,
+    },
+  );
+  return jwksCache;
 }
 
 export interface VerifiedAccessToken {
@@ -41,14 +66,12 @@ export type AccessTokenStatus =
   | { kind: "invalid"; reason: string };
 
 /**
- * Verify the HS256 signature on a Supabase access_token and return its
- * payload status. "expired" is distinguished from "invalid" so the caller
- * can attempt a refresh-token swap before redirecting to login.
+ * Verify the signature on a Supabase access_token and return its payload
+ * status. "expired" is distinguished from "invalid" so the caller can
+ * attempt a refresh-token swap before redirecting to login.
  *
- * NOTE: We pass `clockTolerance: "5s"` so a freshly-issued token whose `iat`
- * is a hair in the future (clock skew) still verifies. We do NOT pass
- * `maxTokenAge` because we want expiry to surface as `kind: "expired"`
- * rather than as a thrown error.
+ * Accepts ES256, RS256, and legacy HS256 — `jose` resolves the right key
+ * from the JWKS based on the token's `kid` and `alg` claims.
  */
 export async function verifyAccessToken(
   accessToken: string,
@@ -57,11 +80,19 @@ export async function verifyAccessToken(
     return { kind: "invalid", reason: "empty_token" };
   }
 
-  const secretBytes = getJwtSecretBytes();
+  let jwks: ReturnType<typeof createRemoteJWKSet>;
+  try {
+    jwks = getJWKS();
+  } catch (err) {
+    return {
+      kind: "invalid",
+      reason: err instanceof Error ? err.message : "jwks_init_failed",
+    };
+  }
 
   try {
-    const { payload } = await jwtVerify(accessToken, secretBytes, {
-      algorithms: ["HS256"],
+    const { payload } = await jwtVerify(accessToken, jwks, {
+      algorithms: ["ES256", "RS256", "HS256"],
       clockTolerance: "5s",
     });
 
@@ -78,18 +109,15 @@ export async function verifyAccessToken(
 
     return { kind: "valid", payload: { sub, email, exp } };
   } catch (err) {
-    // jose throws on signature mismatch, malformed token, or expiry.
-    // We want to surface expiry distinctly so the caller can refresh.
     const code =
       err && typeof err === "object" && "code" in err
         ? String((err as { code?: unknown }).code)
         : "";
+
     if (code === "ERR_JWT_EXPIRED") {
-      // Re-decode without verification to surface the payload — needed so
-      // the refresh path can correlate the user. `jose` doesn't expose a
-      // dedicated "decode without verify" helper for HS256, so we parse
-      // the middle segment manually. This is safe because we only USE the
-      // result if the refresh-token call to Supabase later succeeds.
+      // Surface the payload so the refresh path can correlate the user.
+      // Decode without verification — safe because we only USE the result
+      // if the refresh-token call to Supabase later succeeds.
       try {
         const middle = accessToken.split(".")[1];
         if (middle) {
@@ -130,7 +158,10 @@ export interface RefreshedSession {
  * Exchange a refresh_token for a fresh session using Supabase's REST endpoint.
  * Returns null on any failure — the caller should redirect to /login.
  *
- * Edge-runtime safe (uses fetch, no Node crypto).
+ * Edge-runtime safe (uses fetch, no Node crypto). Unaffected by the JWT
+ * signing-key model: the refresh endpoint just validates the refresh_token
+ * server-side and issues a new access_token signed with whatever key is
+ * current for the project.
  */
 export async function refreshSession(
   refreshToken: string,

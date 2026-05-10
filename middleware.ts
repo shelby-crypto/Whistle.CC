@@ -50,13 +50,9 @@ function redirectToLogin(request: NextRequest): NextResponse {
   return NextResponse.redirect(loginUrl);
 }
 
-export async function middleware(request: NextRequest): Promise<NextResponse> {
-  const { pathname } = request.nextUrl;
-
-  if (isPublic(pathname)) {
-    return NextResponse.next();
-  }
-
+async function authenticateRequest(
+  request: NextRequest,
+): Promise<NextResponse> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   if (!supabaseUrl) {
     // Misconfigured deploy — don't lock everyone out, but also don't pretend
@@ -124,6 +120,27 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   const res = redirectToLogin(request);
   res.cookies.delete(cookieName);
   return res;
+}
+
+export async function middleware(request: NextRequest): Promise<NextResponse> {
+  const { pathname } = request.nextUrl;
+
+  if (isPublic(pathname)) {
+    return NextResponse.next();
+  }
+
+  // DEFENSIVE WRAP: any unhandled throw from the auth path (network blip
+  // hitting the JWKS endpoint, malformed token surface, env misconfig)
+  // would otherwise become MIDDLEWARE_INVOCATION_FAILED — a 500 across
+  // the entire site. Degrade to "treat the user as logged out" instead:
+  // the login page is public, so it still renders, and the user can re-
+  // authenticate. The error is logged so the operator can investigate.
+  try {
+    return await authenticateRequest(request);
+  } catch (err) {
+    console.error("[middleware] Unexpected error during auth check:", err);
+    return redirectToLogin(request);
+  }
 }
 
 export const config = {
