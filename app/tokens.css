@@ -1,0 +1,105 @@
+/* =============================================================================
+   Whistle — Design Tokens
+   Single source of truth, extracted from whistle_DESKTOP_1.html and
+   whistle_MOBILE_FINAL.html. Imported once from app/globals.css; available
+   globally as CSS custom properties (no JS import needed). Mirrored in
+   tailwind.config.ts so utilities like `bg-ink`, `text-stone-3`, `font-serif`
+   resolve to the same values.
+
+   Add new tokens here ONLY when they appear in a shipped mockup. Do not
+   rename existing tokens that already match this system.
+   ============================================================================= */
+
+:root {
+  /* --- Surface (background layers, hairlines) ------------------------------ */
+  --ink:        #0F1419;  /* page background */
+  --ink-2:      #131820;  /* card background */
+  --ink-3:      #1A2028;  /* nested/elevated card, active nav */
+  --line:       #1F2933;  /* default hairline */
+  --line-2:     #2A3340;  /* stronger hairline, button border */
+
+  /* --- Text ---------------------------------------------------------------- */
+  --stone:      #F5EFE6;  /* primary text */
+  --stone-2:    #C5CDD7;  /* secondary text */
+  --stone-3:    #9AA4B0;  /* muted text, captions */
+  --stone-4:    #6B7480;  /* disabled / faintest text */
+
+  /* --- Tier semantics (severity, action color) ----------------------------- */
+  --clay:        #B83C2A; /* high / critical */
+  --clay-deep:   #8F2D1E;
+  --cobalt:      #2D4A6B; /* informational / neutral action */
+  --cobalt-deep: #1F3550;
+  --cobalt-light:#6B95C7;
+  --ochre:       #C8923D; /* medium / calibrate */
+  --ochre-deep:  #9B6F26;
+
+  /* --- Brand --------------------------------------------------------------- */
+  --champagne:      #2DD4BF; /* accent, brand teal, low-risk OK */
+  /* NOTE: --champagne-deep was listed in the spec but is not used in either
+     mockup. Per the "no unused tokens" rule, it is intentionally omitted.
+     Add it here if/when a mockup introduces it. */
+
+  /* --- Avatar palette ------------------------------------------------------ */
+  --av-1: #5D7B9C;
+  --av-2: #8B7355;
+  --av-3: #6B8E7B;
+  --av-4: #9B6B6B;
+  --av-5: #7C6B9B;
+  --av-6: #A88B5C;
+  --av-7: #5C8884;
+  --av-8: #8B7A8E;
+
+  /* --- Status -------------------------------------------------------------- */
+  --neutral: #3A4350; /* off-state for toggles, inactive chips */
+
+  /* --- Typography ---------------------------------------------------------- */
+  /* Font families. --font-sans / --font-serif are populated by next/font in
+     app/layout.tsx so the app can swap providers without touching components. */
+  --font-sans:  var(--font-dm-sans), 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-serif: var(--font-dm-serif), 'DM Serif Display', Georgia, serif;
+
+  /* Type scale (px) — every size below is referenced by at least one element
+     in the desktop or mobile mockup. Heading sizes use --font-serif; the rest
+     use --font-sans. */
+  --fs-display: 32px; /* page title (.page-title)            */
+  --fs-h2:      22px; /* section heading (.waiting-header)   */
+  --fs-h3:      18px; /* card heading (mobile mockup)        */
+  --fs-body:    13px; /* default body / row copy             */
+  --fs-meta:    12px; /* secondary meta text                 */
+  --fs-micro:   11px; /* uppercase eyebrows, tier-context    */
+
+  /* Default line heights matched to the mockups. */
+  --lh-tight:   1;     /* big numbers (.tier-num)            */
+  --lh-snug:    1.25;
+  --lh-normal:  1.45;  /* mobile body                        */
+  --lh-relaxed: 1.5;   /* desktop body                       */
+
+  /* Common weights used in the mockups. */
+  --fw-regular:  400;
+  --fw-medium:   500;
+  --fw-semibold: 600;
+  --fw-bold:     700;
+
+  /* --- Spacing scale (px) -------------------------------------------------- */
+  /* Every step in this scale appears at least once in the mockups. */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  10px;
+  --space-4:  12px;
+  --space-5:  14px;
+  --space-6:  16px;
+  --space-7:  18px;
+  --space-8:  20px;
+  --space-9:  22px;
+  --space-10: 24px;
+  --space-11: 28px;
+  --space-12: 32px;
+
+  /* --- Radius scale (px) --------------------------------------------------- */
+  --radius-1: 3px;   /* checkbox, tiny chip                 */
+  --radius-2: 6px;   /* small pill / icon tile              */
+  --radius-3: 8px;   /* button, status line, nav item       */
+  --radius-4: 10px;  /* tier card, section, chart           */
+  --radius-5: 12px;  /* waiting block, surface card         */
+  --radius-6: 14px;  /* outer frame, large container        */
+}

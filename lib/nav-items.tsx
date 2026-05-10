@@ -11,7 +11,7 @@ const ALL_NAV_ITEMS = [
     ),
   },
   {
-    href: "/feed",
+    href: "/activity",
     label: "Activity",
     icon: (active: boolean) => (
       <svg viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth={active ? 0 : 1.5} className="w-5 h-5">
@@ -38,7 +38,7 @@ const ALL_NAV_ITEMS = [
     ),
   },
   {
-    href: "/settings",
+    href: "/protection",
     label: "Protection",
     icon: (active: boolean) => (
       <svg viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth={active ? 0 : 1.5} className="w-5 h-5">

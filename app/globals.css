@@ -1,6 +1,16 @@
+@import "./tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Apply token-driven defaults at the document root. */
+html, body {
+  background: var(--ink);
+  color: var(--stone);
+  font-family: var(--font-sans);
+  line-height: var(--lh-relaxed);
+}
 
 @layer utilities {
   @keyframes slide-in {

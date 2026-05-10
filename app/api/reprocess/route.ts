@@ -20,6 +20,11 @@ export async function POST() {
     // - risk_level = "error" (new format — pipeline explicitly errored)
     // - risk_level = "none" WITH empty stages (legacy format — pipeline never ran)
     // Does NOT re-pick items that were legitimately classified as "none" with completed stages
+    //
+    // SECURITY: scope by user.id so Athlete A clicking Retry can never
+    // re-classify Athlete B's content. The `db` client uses the service
+    // role and bypasses RLS, so the WHERE on user_id is doing the work
+    // here — do not remove it.
     const { data: failedItems, error: fetchError } = await db
       .from("pipeline_runs")
       .select(`
@@ -38,6 +43,7 @@ export async function POST() {
           raw_data
         )
       `)
+      .eq("user_id", user.id)
       .or("final_risk_level.eq.error,and(final_risk_level.eq.none,stages_completed.eq.{})")
       .limit(BATCH_SIZE);
 
