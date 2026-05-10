@@ -41,6 +41,14 @@ export interface ActivityAuthor {
    * match a mockup or to keep VIP authors visually distinctive).
    */
   avatarSlot?: AvatarSlot;
+  /**
+   * Optional profile-picture URL. When provided, the Avatar component
+   * renders the image on top of the initials disc; when the image fails to
+   * load (or the URL is omitted) the initials remain. Currently sourced
+   * from the demo author registry — wire to a real
+   * `content_items.author_avatar_url` column once that ships.
+   */
+  avatarUrl?: string;
 }
 
 export interface ActivityItem {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
 import type { ActivityItem, Tier, Platform } from "./types";
+import { resolveAuthorIdentity } from "@/lib/demo-authors";
 
 /**
  * Hook that owns the /activity feed dataset.
@@ -53,18 +54,22 @@ interface ActivityItemRow {
 
 /** Map a DB row onto the page's typed ActivityItem. */
 function rowToItem(row: ActivityItemRow): ActivityItem {
-  const handle = row.author_handle ?? "unknown";
-  const displayName =
-    row.author_display_name && row.author_display_name !== "Unknown"
-      ? row.author_display_name
-      : handle;
+  // Resolve to a richer identity via the demo author registry. This is a
+  // demo-only shim — the registry maps known seed-demo handles to friendly
+  // display names + avatar URLs, and rotates the "instagram_user" Graph-API
+  // placeholder into varied identities keyed by row id so the feed reads
+  // as a coherent cast of characters. Once `content_items.author_display_name`
+  // and `content_items.author_avatar_url` ship, drop the resolver and read
+  // those columns directly.
+  const identity = resolveAuthorIdentity(row.author_handle, row.id);
 
   return {
     id: row.id,
     tier: row.tier,
     author: {
-      displayName,
-      handle,
+      displayName: identity.displayName,
+      handle: identity.handle,
+      avatarUrl: identity.avatarUrl,
       // `initials` and `avatarSlot` are intentionally left undefined so the
       // <Avatar> component falls back to the deterministic-from-handle hash.
       // Production data carries no hand-pinned palette overrides.

@@ -10,6 +10,7 @@ import {
   summarizeRemovalReason,
   type HarmScoresBlob,
 } from "@/lib/harm-labels";
+import { resolveAuthorIdentity } from "@/lib/demo-authors";
 
 interface PageProps {
   // Next 15 makes both params and searchParams async; await before reading.
@@ -123,11 +124,19 @@ export default async function ActivityDetailPage({
   // Resolve display fields with sensible fallbacks so the page always renders
   // a recognisable card even if the row lookup returned nothing.
   const tier: Tier = row?.tier ?? "critical";
-  const handle = row?.author_handle ?? "unknown";
-  const displayName =
-    row?.author_display_name && row.author_display_name !== "Unknown"
-      ? row.author_display_name
-      : handle;
+
+  // Resolve the demo author identity. The activity_items view doesn't yet
+  // expose display name or profile-image columns, and Instagram-polled
+  // comments arrive with the placeholder handle "instagram_user". The
+  // resolver (lib/demo-authors.ts) maps known seed-demo handles to
+  // hand-curated identities and synthesises a deterministic identity for
+  // the placeholder, keyed by the row id so the same row always renders the
+  // same fake person. Delete once the real `author_display_name` /
+  // `author_avatar_url` columns ship.
+  const identity = resolveAuthorIdentity(row?.author_handle, id);
+  const handle = identity.handle;
+  const displayName = identity.displayName;
+  const avatarUrl = identity.avatarUrl;
   const platform = row?.platform ?? "—";
   const dateLabel = row?.created_at
     ? formatActivityDate(row.created_at, "desktop")
@@ -199,6 +208,7 @@ export default async function ActivityDetailPage({
           <Avatar
             handle={handle}
             displayName={displayName}
+            imageUrl={avatarUrl}
             size={40}
             className="shrink-0"
           />

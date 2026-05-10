@@ -111,6 +111,7 @@ export default function ActivityRowDesktop({
           displayName={author.displayName}
           initials={author.initials}
           tokenIndex={author.avatarSlot}
+          imageUrl={author.avatarUrl}
           size={32}
         />
         <div className="flex flex-col gap-px min-w-0">

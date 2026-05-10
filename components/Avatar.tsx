@@ -1,14 +1,24 @@
 /**
- * Avatar — initials-only, deterministic-color avatar.
+ * Avatar — initials-only avatar with optional profile-image overlay.
  *
  * Visual reference: `.avatar` in whistle_DESKTOP_1.html.
  *
- * Phase 1: initials + a hashed background from the --av-1..--av-8 token
- * palette. Phase 2 (not in this prompt) will layer real profile images on top
- * once the platform APIs are wired.
+ * Behaviour:
+ *   - Initials rendered onto a deterministic palette slot (--av-1..--av-8)
+ *     derived from `handle`. This is always present so the avatar never
+ *     blanks out, even before an image loads.
+ *   - When `imageUrl` is provided, an <img> is layered on top of the
+ *     initials disc. If the image fails to load (404, CORS, blocked host,
+ *     etc.) we drop it and fall back to the initials — same component, no
+ *     layout shift.
  *
- * No image fallback, no online indicator, no hover state — by request.
+ * `<img>` is used directly (not next/image) so callers can pass arbitrary
+ * remote URLs without needing the Next image-domain allowlist. Trade-off:
+ * no automatic resizing or AVIF/WebP optimization. Acceptable for avatar
+ * thumbnails at 32–48px.
  */
+
+"use client";
 
 import * as React from "react";
 import { getAvatarTokenIndex, getInitials } from "./avatarUtils";
@@ -34,6 +44,12 @@ export interface AvatarProps {
    * hash so a bad input never blanks the avatar.
    */
   tokenIndex?: number;
+  /**
+   * Optional profile-image URL. When supplied and the image loads
+   * successfully, it covers the initials disc. On load error the component
+   * silently reverts to initials.
+   */
+  imageUrl?: string | null;
   /** Pass-through for layout-level styling (margin, etc.). Internal styles
    * always win. */
   className?: string;
@@ -45,6 +61,7 @@ export default function Avatar({
   size = 32,
   initials: initialsOverride,
   tokenIndex: tokenIndexOverride,
+  imageUrl,
   className,
 }: AvatarProps) {
   const initials = initialsOverride
@@ -62,6 +79,15 @@ export default function Avatar({
   // spec asks for ~0.34, which reads slightly tighter inside the circle. Using
   // 0.34 and rounding to whole px keeps text crisp at small sizes.
   const fontSize = Math.round(size * 0.34);
+
+  // Image-load failure tracking. When `imageUrl` changes we reset, so a fresh
+  // URL gets a fresh attempt even if a prior one 404'd.
+  const [imgFailed, setImgFailed] = React.useState(false);
+  React.useEffect(() => {
+    setImgFailed(false);
+  }, [imageUrl]);
+
+  const showImage = !!imageUrl && !imgFailed;
 
   return (
     <span
@@ -84,9 +110,32 @@ export default function Avatar({
         flexShrink: 0,
         userSelect: "none",
         lineHeight: 1,
+        position: "relative",
+        overflow: "hidden",
       }}
     >
-      {initials}
+      {/* Initials are always rendered underneath so the disc is never blank
+          while the image is loading or after it errors out. */}
+      <span aria-hidden={showImage ? true : undefined}>{initials}</span>
+
+      {showImage && (
+        // eslint-disable-next-line @next/next/no-img-element -- we want
+        // unrestricted remote URLs without configuring the Next image domains
+        // allowlist; perf cost is negligible at avatar thumbnail sizes.
+        <img
+          src={imageUrl ?? undefined}
+          alt=""
+          onError={() => setImgFailed(true)}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            borderRadius: "50%",
+          }}
+        />
+      )}
     </span>
   );
 }

@@ -111,6 +111,7 @@ export default function ActivityRowMobile({
         displayName={author.displayName}
         initials={author.initials}
         tokenIndex={author.avatarSlot}
+        imageUrl={author.avatarUrl}
         size={28}
       />
 
